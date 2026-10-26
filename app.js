@@ -16,7 +16,7 @@ let state = {
     }
 };
 
-// Form state buffer to prevent typing cutoff during live polling
+// Global Form Buffer to ensure typing is never interrupted across any view
 let formState = {
     posTable: 'Table 1',
     posItem: '',
@@ -69,7 +69,7 @@ function stopEmergencyTone() {
     }
 }
 
-// Data Sync Engine
+// Data Sync Engine with Active Focus Guard
 async function syncData() {
     try {
         const res = await fetch(API_URL, {
@@ -77,7 +77,7 @@ async function syncData() {
         });
         const data = await res.json();
         
-        // Prevent re-rendering and clearing inputs if user is currently typing inside an input or textarea
+        // Absolute check: if user is currently typing in ANY input or textarea, skip rendering entirely
         const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
         const isTyping = activeTag === 'input' || activeTag === 'textarea';
 
@@ -121,7 +121,7 @@ function render() {
     const kioskEmergency = document.getElementById('kiosk-emergency-overlay');
     const kioskEmergencyMsg = document.getElementById('kiosk-emergency-msg');
 
-    // Sync form buffer values if empty
+    // Initialize buffer values from state if empty
     if (!formState.annMain) formState.annMain = state.config.announcement || '';
     if (!formState.annSub) formState.annSub = state.config.subAnnouncement || '';
     if (!formState.adminEmergencyMsg) formState.adminEmergencyMsg = state.config.emergencyMessage || '';
@@ -198,7 +198,6 @@ function render() {
 
         container.className = "w-full min-h-screen bg-[#07090e] p-8 md:p-12 flex flex-col justify-between";
         container.innerHTML = `
-            <!-- Top Bar Branding -->
             <div class="flex items-center justify-between border-b border-indigo-500/20 pb-6">
                 <div>
                     <span class="font-brand font-black text-2xl md:text-3xl tracking-widest text-white">EME DANCERS</span>
@@ -209,7 +208,6 @@ function render() {
                 </div>
             </div>
 
-            <!-- Main Center Broadcast Text -->
             <div class="my-auto py-10 text-center space-y-4">
                 <h1 class="font-brand text-5xl md:text-7xl font-black text-white tracking-tight leading-tight uppercase drop-shadow-2xl">
                     ${state.config.announcement}
@@ -217,7 +215,6 @@ function render() {
                 ${state.config.subAnnouncement ? `<p class="text-indigo-300 text-xl md:text-2xl font-semibold tracking-wide">${state.config.subAnnouncement}</p>` : ''}
             </div>
 
-            <!-- CDS (Customer Order Collection Display) -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-slate-800/80 pt-8">
                 <div class="bg-[#0f141d] p-6 rounded-2xl border border-slate-800">
                     <h3 class="text-xs font-bold uppercase tracking-widest text-amber-400 mb-4 flex items-center gap-2">
@@ -250,7 +247,7 @@ function render() {
         `;
     }
 
-    // 3. POS VIEW
+    // 3. POS VIEW (Buffered with oninput protection)
     else if (state.view === 'pos') {
         container.className = "max-w-3xl mx-auto p-6 md:p-10";
         container.innerHTML = `
@@ -431,7 +428,7 @@ function submitOrder() {
     const item = formState.posItem;
     if (!table || !item) return;
     state.orders.push({ table, item, status: 'ordered' });
-    formState.posItem = '';
+    formState.posItem = ''; // clear order note buffer after submit
     saveData();
     alert("Order submitted!");
 }
