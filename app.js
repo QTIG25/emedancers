@@ -16,10 +16,19 @@ let state = {
     }
 };
 
+// Form state buffer to prevent typing cutoff during live polling
+let formState = {
+    posTable: 'Table 1',
+    posItem: '',
+    annMain: '',
+    annSub: '',
+    adminEmergencyMsg: ''
+};
+
 let emergencyAudioCtx = null;
 let emergencyOscillator = null;
 
-// Audio Synth for Evacuation Tone (Fires only on the Kiosk / Big Screen display)
+// Audio Synth for Evacuation Tone
 function playEmergencyTone() {
     try {
         if (!emergencyAudioCtx) {
@@ -67,9 +76,17 @@ async function syncData() {
             headers: { 'X-Master-Key': API_KEY }
         });
         const data = await res.json();
+        
+        // Prevent re-rendering and clearing inputs if user is currently typing inside an input or textarea
+        const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+        const isTyping = activeTag === 'input' || activeTag === 'textarea';
+
         state.orders = data.record.orders || [];
         state.config = data.record.config || state.config;
-        render();
+
+        if (!isTyping) {
+            render();
+        }
     } catch (e) {
         console.error("Sync error:", e);
     }
@@ -104,12 +121,16 @@ function render() {
     const kioskEmergency = document.getElementById('kiosk-emergency-overlay');
     const kioskEmergencyMsg = document.getElementById('kiosk-emergency-msg');
 
+    // Sync form buffer values if empty
+    if (!formState.annMain) formState.annMain = state.config.announcement || '';
+    if (!formState.annSub) formState.annSub = state.config.subAnnouncement || '';
+    if (!formState.adminEmergencyMsg) formState.adminEmergencyMsg = state.config.emergencyMessage || '';
+
     // Handle Kiosk Mode (Hide Headers/Footers on Big Screen)
     if (state.view === 'ann') {
         header.classList.add('hidden');
         footer.classList.add('hidden');
         
-        // Show Kiosk Emergency Overrides if active
         if (state.config.emergencyActive) {
             kioskEmergency.classList.remove('hidden');
             if (kioskEmergencyMsg) kioskEmergencyMsg.innerText = state.config.emergencyMessage;
@@ -198,7 +219,6 @@ function render() {
 
             <!-- CDS (Customer Order Collection Display) -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-slate-800/80 pt-8">
-                <!-- In Progress Section -->
                 <div class="bg-[#0f141d] p-6 rounded-2xl border border-slate-800">
                     <h3 class="text-xs font-bold uppercase tracking-widest text-amber-400 mb-4 flex items-center gap-2">
                         <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span> PREPARING FOOD & DRINK
@@ -213,7 +233,6 @@ function render() {
                     </div>
                 </div>
 
-                <!-- Ready For Collection Section -->
                 <div class="bg-[#0f141d] p-6 rounded-2xl border border-emerald-500/30 shadow-[0_0_30px_rgba(16,185,129,0.1)]">
                     <h3 class="text-xs font-bold uppercase tracking-widest text-emerald-400 mb-4 flex items-center gap-2">
                         <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span> READY FOR PICKUP
@@ -244,12 +263,12 @@ function render() {
                 <div class="space-y-4">
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Table Number / Order ID</label>
-                        <input type="text" id="pos-table" placeholder="e.g., Table 4 or Order #102" class="w-full bg-[#0b0e14] border border-slate-700 p-3.5 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500">
+                        <input type="text" id="pos-table" value="${formState.posTable}" oninput="formState.posTable = this.value" placeholder="e.g., Table 4 or Order #102" class="w-full bg-[#0b0e14] border border-slate-700 p-3.5 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500">
                     </div>
 
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Order Items / Notes</label>
-                        <textarea id="pos-item" placeholder="e.g., 2x Burgers, 1x Cola (No Ice)" class="w-full bg-[#0b0e14] border border-slate-700 p-3.5 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500 h-28 resize-none"></textarea>
+                        <textarea id="pos-item" oninput="formState.posItem = this.value" placeholder="e.g., 2x Burgers, 1x Cola (No Ice)" class="w-full bg-[#0b0e14] border border-slate-700 p-3.5 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500 h-28 resize-none">${formState.posItem}</textarea>
                     </div>
 
                     <button onclick="submitOrder()" class="w-full bg-indigo-600 hover:bg-indigo-500 py-3.5 rounded-xl font-bold text-sm text-white transition shadow-lg">
@@ -260,7 +279,7 @@ function render() {
         `;
     }
 
-    // 4. KITCHEN DISPLAY (KDS - 3 PHASE WORKFLOW)
+    // 4. KITCHEN DISPLAY (KDS)
     else if (state.view === 'kds') {
         container.className = "max-w-7xl mx-auto p-6 md:p-10";
         container.innerHTML = `
@@ -332,7 +351,6 @@ function render() {
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <!-- Full Spotify Web Player Window -->
                     <div class="bg-[#121721] p-6 rounded-2xl border border-slate-800 space-y-4 flex flex-col h-[520px]">
                         <div class="flex items-center justify-between">
                             <h3 class="text-sm font-bold text-white uppercase tracking-wider">Spotify Web Player</h3>
@@ -350,13 +368,11 @@ function render() {
                         </div>
                     </div>
 
-                    <!-- Stage Controls & Emergency Alarm -->
                     <div class="space-y-6">
-                        <!-- Broadcast Controller -->
                         <div class="bg-[#121721] p-6 rounded-2xl border border-slate-800 space-y-4">
                             <h3 class="text-sm font-bold text-white uppercase tracking-wider">Push to Big Screen</h3>
-                            <input type="text" id="ann-main" placeholder="Main Title (e.g., NEXT ACT: EME JUNIORS)" value="${state.config.announcement}" class="w-full bg-[#0b0e14] border border-slate-700 p-3 rounded-xl text-white text-sm">
-                            <input type="text" id="ann-sub" placeholder="Sub-text (optional)" value="${state.config.subAnnouncement || ''}" class="w-full bg-[#0b0e14] border border-slate-700 p-3 rounded-xl text-white text-sm">
+                            <input type="text" id="ann-main" value="${formState.annMain}" oninput="formState.annMain = this.value" placeholder="Main Title (e.g., NEXT ACT: EME JUNIORS)" class="w-full bg-[#0b0e14] border border-slate-700 p-3 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500">
+                            <input type="text" id="ann-sub" value="${formState.annSub}" oninput="formState.annSub = this.value" placeholder="Sub-text (optional)" class="w-full bg-[#0b0e14] border border-slate-700 p-3 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500">
                             
                             <div class="flex gap-2">
                                 <button onclick="setQuickAnn('SHOW STARTING IN 5 MINUTES', 'Please take your seats')" class="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 py-1.5 px-3 rounded-lg border border-slate-700">Preset: 5 Mins</button>
@@ -368,7 +384,6 @@ function render() {
                             </button>
                         </div>
 
-                        <!-- Emergency Overrides (Resetable Master Switch) -->
                         <div class="bg-[#121721] p-6 rounded-2xl border ${state.config.emergencyActive ? 'border-rose-500 bg-rose-950/20' : 'border-slate-800'} space-y-3">
                             <h3 class="text-sm font-bold ${state.config.emergencyActive ? 'text-rose-400 animate-pulse' : 'text-slate-300'} uppercase tracking-wider">Emergency Alarm Master Control</h3>
                             <p class="text-xs text-slate-400">Triggers the safety warning overlay and audio evacuation siren on the public Big Screen display.</p>
@@ -399,7 +414,7 @@ function render() {
                     </div>
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Emergency Message Text</label>
-                        <textarea id="admin-emergency-msg" class="w-full bg-[#0b0e14] border border-slate-700 p-3 rounded-xl text-white text-sm h-24 resize-none">${state.config.emergencyMessage}</textarea>
+                        <textarea id="admin-emergency-msg" oninput="formState.adminEmergencyMsg = this.value" class="w-full bg-[#0b0e14] border border-slate-700 p-3 rounded-xl text-white text-sm h-24 resize-none focus:outline-none focus:border-indigo-500">${formState.adminEmergencyMsg}</textarea>
                     </div>
                     <button onclick="saveAdminSettings()" class="w-full bg-indigo-600 hover:bg-indigo-500 py-3 rounded-xl font-bold text-sm text-white transition">
                         Save System Defaults
@@ -412,10 +427,11 @@ function render() {
 
 // POS Action
 function submitOrder() {
-    const table = document.getElementById('pos-table').value;
-    const item = document.getElementById('pos-item').value;
+    const table = formState.posTable;
+    const item = formState.posItem;
     if (!table || !item) return;
     state.orders.push({ table, item, status: 'ordered' });
+    formState.posItem = '';
     saveData();
     alert("Order submitted!");
 }
@@ -433,16 +449,14 @@ function removeOrder(index) {
 
 // DJ Actions
 function updateAnnouncement() {
-    const main = document.getElementById('ann-main').value;
-    const sub = document.getElementById('ann-sub').value;
-    state.config.announcement = main;
-    state.config.subAnnouncement = sub;
+    state.config.announcement = formState.annMain;
+    state.config.subAnnouncement = formState.annSub;
     saveData();
 }
 
 function setQuickAnn(main, sub) {
-    document.getElementById('ann-main').value = main;
-    document.getElementById('ann-sub').value = sub;
+    formState.annMain = main;
+    formState.annSub = sub;
     updateAnnouncement();
 }
 
@@ -452,8 +466,7 @@ function toggleEmergency() {
 }
 
 function saveAdminSettings() {
-    const msg = document.getElementById('admin-emergency-msg').value;
-    state.config.emergencyMessage = msg;
+    state.config.emergencyMessage = formState.adminEmergencyMsg;
     saveData();
     alert("Admin defaults saved.");
 }
