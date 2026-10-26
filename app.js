@@ -19,18 +19,17 @@ let state = {
 let emergencyAudioCtx = null;
 let emergencyOscillator = null;
 
-// Audio Synth for British Standard ISO Evacuation Tone
+// Audio Synth for Evacuation Tone (Fires only on the Kiosk / Big Screen display)
 function playEmergencyTone() {
     try {
         if (!emergencyAudioCtx) {
             emergencyAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
         }
-        if (emergencyOscillator) return; // Already playing
+        if (emergencyOscillator) return;
 
         emergencyOscillator = emergencyAudioCtx.createOscillator();
         const gainNode = emergencyAudioCtx.createGain();
 
-        // BS 5839-1 Two-Tone Evacuation Pattern (800Hz / 970Hz alternating)
         emergencyOscillator.type = 'sawtooth';
         emergencyOscillator.frequency.setValueAtTime(800, emergencyAudioCtx.currentTime);
 
@@ -53,8 +52,10 @@ function playEmergencyTone() {
 
 function stopEmergencyTone() {
     if (emergencyOscillator) {
-        emergencyOscillator.stop();
-        emergencyOscillator.disconnect();
+        try {
+            emergencyOscillator.stop();
+            emergencyOscillator.disconnect();
+        } catch (e) {}
         emergencyOscillator = null;
     }
 }
@@ -98,29 +99,29 @@ function switchView(viewName) {
 // --- MAIN RENDER ENGINE ---
 function render() {
     const container = document.getElementById('app-container');
-    const banner = document.getElementById('emergency-banner');
     const header = document.getElementById('main-header');
     const footer = document.getElementById('main-footer');
-    const bannerMsg = document.getElementById('emergency-banner-msg');
+    const kioskEmergency = document.getElementById('kiosk-emergency-overlay');
+    const kioskEmergencyMsg = document.getElementById('kiosk-emergency-msg');
 
     // Handle Kiosk Mode (Hide Headers/Footers on Big Screen)
     if (state.view === 'ann') {
         header.classList.add('hidden');
         footer.classList.add('hidden');
+        
+        // Show Kiosk Emergency Overrides if active
+        if (state.config.emergencyActive) {
+            kioskEmergency.classList.remove('hidden');
+            if (kioskEmergencyMsg) kioskEmergencyMsg.innerText = state.config.emergencyMessage;
+            playEmergencyTone();
+        } else {
+            kioskEmergency.classList.add('hidden');
+            stopEmergencyTone();
+        }
     } else {
         header.classList.remove('hidden');
         footer.classList.remove('hidden');
-    }
-
-    // Handle Emergency Alarm Override
-    if (state.config.emergencyActive) {
-        banner.classList.remove('hidden');
-        if (bannerMsg) bannerMsg.innerText = state.config.emergencyMessage;
-        if (state.view === 'dj') {
-            playEmergencyTone();
-        }
-    } else {
-        banner.classList.add('hidden');
+        kioskEmergency.classList.add('hidden');
         stopEmergencyTone();
     }
 
@@ -150,7 +151,7 @@ function render() {
                     <div onclick="switchView('dj')" class="bg-[#121721] p-6 rounded-xl border border-slate-800 hover:border-slate-600 cursor-pointer transition shadow-lg">
                         <div class="text-xs font-bold tracking-widest text-indigo-400 uppercase mb-2">Stage & Audio</div>
                         <h3 class="text-xl font-bold text-white">DJ & Tech Deck</h3>
-                        <p class="text-xs text-slate-400 mt-2">Spotify player, announcements, stage alerts & BS emergency alarm.</p>
+                        <p class="text-xs text-slate-400 mt-2">Spotify web player, stage announcements & emergency controls.</p>
                     </div>
 
                     <div onclick="switchView('ann')" class="bg-[#121721] p-6 rounded-xl border border-slate-800 hover:border-slate-600 cursor-pointer transition shadow-lg">
@@ -267,7 +268,7 @@ function render() {
                 <div class="flex items-center justify-between border-b border-slate-800 pb-4">
                     <div>
                         <h2 class="text-xl font-bold text-white">Kitchen Display System</h2>
-                        <p class="text-xs text-slate-400">3-Phase workflow: Ordered $\\rightarrow$ In Progress $\\rightarrow$ Ready for Pickup.</p>
+                        <p class="text-xs text-slate-400">3-Phase workflow: Ordered -> In Progress -> Ready for Pickup.</p>
                     </div>
                     <span class="bg-slate-800 text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-700">
                         Active Tickets: ${state.orders.length}
@@ -327,16 +328,19 @@ function render() {
             <div class="space-y-6">
                 <div class="border-b border-slate-800 pb-4">
                     <h2 class="text-xl font-bold text-white">DJ & Tech Deck</h2>
-                    <p class="text-xs text-slate-400">Audio playback, big screen broadcasts, and BS emergency alarm triggering.</p>
+                    <p class="text-xs text-slate-400">Full Spotify integration, stage broadcasts, and master emergency override controls.</p>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <!-- Spotify Embed Player -->
-                    <div class="bg-[#121721] p-6 rounded-2xl border border-slate-800 space-y-4">
-                        <h3 class="text-sm font-bold text-white uppercase tracking-wider">Embedded Spotify Player</h3>
-                        <div class="w-full h-80 rounded-xl overflow-hidden border border-slate-800">
+                    <!-- Full Spotify Web Player Window -->
+                    <div class="bg-[#121721] p-6 rounded-2xl border border-slate-800 space-y-4 flex flex-col h-[520px]">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Spotify Web Player</h3>
+                            <a href="https://open.spotify.com" target="_blank" class="text-xs text-indigo-400 hover:underline">Open in new tab ↗</a>
+                        </div>
+                        <div class="w-full flex-1 rounded-xl overflow-hidden border border-slate-800 bg-black">
                             <iframe 
-                                src="https://open.spotify.com/embed/playlist/37i9dQZF1DXcBWIGoYBM5M?utm_source=generator&theme=0" 
+                                src="https://open.spotify.com" 
                                 width="100%" 
                                 height="100%" 
                                 frameBorder="0" 
@@ -364,12 +368,12 @@ function render() {
                             </button>
                         </div>
 
-                        <!-- Emergency Overrides -->
-                        <div class="bg-[#121721] p-6 rounded-2xl border border-rose-900/50 space-y-3">
-                            <h3 class="text-sm font-bold text-rose-400 uppercase tracking-wider">BS 5839-1 Emergency Alarm Override</h3>
-                            <p class="text-xs text-slate-400">Activating will flash all screens and play a high-decibel two-tone evacuation siren on this device.</p>
-                            <button onclick="toggleEmergency()" class="w-full py-4 rounded-xl font-black text-sm tracking-widest text-white transition ${state.config.emergencyActive ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-rose-600 hover:bg-rose-500 shadow-lg'}">
-                                ${state.config.emergencyActive ? 'DEACTIVATE EMERGENCY ALARM' : 'TRIGGER BRITISH STANDARD EVACUATION'}
+                        <!-- Emergency Overrides (Resetable Master Switch) -->
+                        <div class="bg-[#121721] p-6 rounded-2xl border ${state.config.emergencyActive ? 'border-rose-500 bg-rose-950/20' : 'border-slate-800'} space-y-3">
+                            <h3 class="text-sm font-bold ${state.config.emergencyActive ? 'text-rose-400 animate-pulse' : 'text-slate-300'} uppercase tracking-wider">Emergency Alarm Master Control</h3>
+                            <p class="text-xs text-slate-400">Triggers the safety warning overlay and audio evacuation siren on the public Big Screen display.</p>
+                            <button onclick="toggleEmergency()" class="w-full py-4 rounded-xl font-black text-sm tracking-widest text-white transition ${state.config.emergencyActive ? 'bg-emerald-600 hover:bg-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.4)]' : 'bg-rose-600 hover:bg-rose-500 shadow-lg'}">
+                                ${state.config.emergencyActive ? 'RESET / DEACTIVATE EMERGENCY ALARM' : 'TRIGGER EMERGENCY ALARM'}
                             </button>
                         </div>
                     </div>
