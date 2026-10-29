@@ -13,7 +13,7 @@ let state = {
         subAnnouncement: 'Enjoy the music, drinks, and performances',
         kdsTone: 'beep',
         kdsVolume: 0.5,
-        lighting: 'ambient_orange'
+        effect: 'none' // 'none', 'confetti', 'fireworks'
     }
 };
 
@@ -28,7 +28,7 @@ let formState = {
 let emergencyAudioCtx = null;
 let emergencyOscillator = null;
 
-// Audio Synth for Evacuation Tone (Guaranteed override loop)
+// Audio Synth for Evacuation Tone
 function playEmergencyTone() {
     try {
         if (!emergencyAudioCtx) {
@@ -48,9 +48,9 @@ function playEmergencyTone() {
                 emergencyOscillator.frequency.setValueAtTime(isHigh ? 800 : 970, emergencyAudioCtx.currentTime);
                 isHigh = !isHigh;
             }
-        }, 300);
+        }, 500);
 
-        gainNode.gain.setValueAtTime(1.0, emergencyAudioCtx.currentTime);
+        gainNode.gain.setValueAtTime(0.8, emergencyAudioCtx.currentTime);
         emergencyOscillator.connect(gainNode);
         gainNode.connect(emergencyAudioCtx.destination);
         emergencyOscillator.start();
@@ -69,7 +69,7 @@ function stopEmergencyTone() {
     }
 }
 
-// Data Sync Engine with Active Focus Guard (Preserves Multi-DJ session state)
+// Data Sync Engine with Active Focus Guard
 async function syncData() {
     try {
         const res = await fetch(API_URL, {
@@ -124,23 +124,23 @@ function render() {
     if (!formState.annSub) formState.annSub = state.config.subAnnouncement || '';
     if (!formState.adminEmergencyMsg) formState.adminEmergencyMsg = state.config.emergencyMessage || '';
 
-    // MASTER EMERGENCY OVERRIDE (Applies instantly across all screens/devices)
-    if (state.config.emergencyActive) {
-        if (kioskEmergency) kioskEmergency.classList.remove('hidden');
-        if (kioskEmergencyMsg) kioskEmergencyMsg.innerText = state.config.emergencyMessage;
-        playEmergencyTone();
-    } else {
-        if (kioskEmergency) kioskEmergency.classList.add('hidden');
-        stopEmergencyTone();
-    }
-
-    // Handle Kiosk Mode (Hide Headers/Footers on Big Screen)
     if (state.view === 'ann') {
         header.classList.add('hidden');
         footer.classList.add('hidden');
+        
+        if (state.config.emergencyActive) {
+            kioskEmergency.classList.remove('hidden');
+            if (kioskEmergencyMsg) kioskEmergencyMsg.innerText = state.config.emergencyMessage;
+            playEmergencyTone();
+        } else {
+            kioskEmergency.classList.add('hidden');
+            stopEmergencyTone();
+        }
     } else {
         header.classList.remove('hidden');
         footer.classList.remove('hidden');
+        kioskEmergency.classList.add('hidden');
+        stopEmergencyTone();
     }
 
     // 1. HOME VIEW
@@ -169,13 +169,13 @@ function render() {
                     <div onclick="switchView('dj')" class="bg-[#121721] p-6 rounded-xl border border-slate-800 hover:border-slate-600 cursor-pointer transition shadow-lg">
                         <div class="text-xs font-bold tracking-widest text-indigo-400 uppercase mb-2">Stage & Audio</div>
                         <h3 class="text-xl font-bold text-white">DJ & Tech Deck</h3>
-                        <p class="text-xs text-slate-400 mt-2">Spotify player, lighting control & emergency overrides.</p>
+                        <p class="text-xs text-slate-400 mt-2">Spotify player, announcements, FX & emergency controls.</p>
                     </div>
 
                     <div onclick="switchView('ann')" class="bg-[#121721] p-6 rounded-xl border border-slate-800 hover:border-slate-600 cursor-pointer transition shadow-lg">
                         <div class="text-xs font-bold tracking-widest text-purple-400 uppercase mb-2">Public Kiosk</div>
                         <h3 class="text-xl font-bold text-white">Big Screen (ANN / CDS)</h3>
-                        <p class="text-xs text-slate-400 mt-2">Decorated Halloween stage display with live RGB lighting & CDS.</p>
+                        <p class="text-xs text-slate-400 mt-2">Full-screen Halloween display with live CDS collection board.</p>
                     </div>
 
                     <div onclick="switchView('admin')" class="bg-[#121721] p-6 rounded-xl border border-slate-800 hover:border-slate-600 cursor-pointer transition shadow-lg">
@@ -188,56 +188,58 @@ function render() {
         `;
     }
 
-    // 2. BIG SCREEN VIEW (HALLOWEEN DECOR + SUPERCHARGED UPBEAT PARTY LIGHTS + CDS)
+    // 2. BIG SCREEN VIEW (CLEAN HALLOWEEN AESTHETIC + FX + CDS)
     else if (state.view === 'ann') {
         const preparingOrders = state.orders.filter(o => o.status === 'in_prog');
         const readyOrders = state.orders.filter(o => o.status === 'ready');
 
-        let lightingBg = "bg-gradient-to-b from-[#0f071c] via-[#07040d] to-[#040207]";
-        let lightingOverlay = "";
-        let borderGlow = "border-orange-500/20";
-
-        if (state.config.lighting === 'neon_purple') {
-            lightingBg = "bg-gradient-to-b from-[#2e074d] via-[#10031a] to-[#05010a]";
-            lightingOverlay = "shadow-[inset_0_0_150px_rgba(168,85,247,0.5)]";
-            borderGlow = "border-purple-500/60";
-        } else if (state.config.lighting === 'strobe_white') {
-            lightingBg = "bg-black";
-            lightingOverlay = "animate-[bounce_0.2s_infinite] bg-white/20";
-            borderGlow = "border-white";
-        } else if (state.config.lighting === 'party_rgb') {
-            // Super-upbeat rapid color shifting party mode
-            lightingBg = "bg-gradient-to-r from-purple-700 via-pink-600 to-indigo-700 animate-[pulse_0.4s_cubic-bezier(0.4,0,0.6,1)_infinite]";
-            lightingOverlay = "shadow-[inset_0_0_200px_rgba(255,255,255,0.4)]";
-            borderGlow = "border-pink-300";
-        } else if (state.config.lighting === 'blackout') {
-            lightingBg = "bg-black";
-            borderGlow = "border-zinc-900";
+        let effectHTML = '';
+        if (state.config.effect === 'confetti') {
+            effectHTML = `
+                <div class="absolute inset-0 pointer-events-none overflow-hidden z-10">
+                    <div class="absolute inset-0 bg-[radial-gradient(circle,rgba(249,115,22,0.12)_0%,transparent_70%)]"></div>
+                    <div class="confetti-streamer">🎃 🦇 👻 🍬 🕸️ 🔮 🎃 🦇 👻 🍬 🕸️ 🔮</div>
+                </div>
+            `;
+        } else if (state.config.effect === 'fireworks') {
+            effectHTML = `
+                <div class="absolute inset-0 pointer-events-none overflow-hidden z-10 bg-purple-950/20">
+                    <div class="absolute top-12 left-1/4 text-7xl animate-bounce">🎇</div>
+                    <div class="absolute top-24 right-1/4 text-7xl animate-bounce" style="animation-delay: 0.2s;">🎆</div>
+                    <div class="absolute bottom-1/3 left-1/3 text-7xl animate-bounce" style="animation-delay: 0.4s;">💥</div>
+                    <div class="absolute top-1/2 right-1/3 text-7xl animate-bounce" style="animation-delay: 0.6s;">✨</div>
+                </div>
+            `;
         }
 
-        container.className = `w-full min-h-screen ${lightingBg} p-8 md:p-14 flex flex-col justify-between relative overflow-hidden transition-all duration-300 ${lightingOverlay}`;
+        container.className = "w-full min-h-screen bg-gradient-to-b from-[#0f071c] via-[#07040d] to-[#040207] p-8 md:p-14 flex flex-col justify-between relative overflow-hidden";
         container.innerHTML = `
-            <div class="absolute -top-32 -left-32 w-96 h-96 bg-orange-600/20 rounded-full blur-3xl pointer-events-none"></div>
-            <div class="absolute -bottom-32 -right-32 w-96 h-96 bg-purple-600/30 rounded-full blur-3xl pointer-events-none"></div>
+            ${effectHTML}
 
-            <div class="flex items-center justify-between border-b ${borderGlow} pb-6 relative z-20">
+            <!-- Spooky Ambient Glows -->
+            <div class="absolute -top-32 -left-32 w-96 h-96 bg-orange-600/15 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -bottom-32 -right-32 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl pointer-events-none"></div>
+
+            <!-- Header Branding (Cleaned up as requested) -->
+            <div class="flex items-center justify-between border-b border-orange-500/20 pb-6 relative z-20">
                 <div class="flex items-center gap-3">
-                    <span class="text-3xl animate-bounce">🎃</span>
+                    <span class="text-3xl animate-pulse">🎃</span>
                     <span class="font-brand font-black text-3xl md:text-4xl tracking-widest text-orange-400 drop-shadow-[0_0_20px_rgba(249,115,22,0.5)]">EME DANCERS</span>
                 </div>
-                <div class="text-purple-300 font-mono text-xs font-bold tracking-widest uppercase flex items-center gap-2">
-                    <span>🦇 HALLOWEEN STAGE 🦇</span>
-                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+                <div class="text-purple-400 font-mono text-xs font-bold tracking-widest uppercase">
+                    🕸️ HALLOWEEN PRODUCTION 🕸️
                 </div>
             </div>
 
+            <!-- Main Center Announcement Text -->
             <div class="my-auto py-12 text-center space-y-6 relative z-20">
-                <h1 class="font-brand text-5xl md:text-8xl font-black text-white tracking-tight leading-tight uppercase drop-shadow-[0_0_40px_rgba(168,85,247,0.6)]">
+                <h1 class="font-brand text-5xl md:text-8xl font-black text-white tracking-tight leading-tight uppercase drop-shadow-[0_0_40px_rgba(168,85,247,0.4)]">
                     ${state.config.announcement}
                 </h1>
                 ${state.config.subAnnouncement ? `<p class="text-orange-300 text-2xl md:text-3xl font-semibold tracking-wide drop-shadow">${state.config.subAnnouncement}</p>` : ''}
             </div>
 
+            <!-- CDS (Customer Order Collection Display) -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-purple-950/80 pt-8 relative z-20">
                 <div class="bg-[#120b1e]/90 backdrop-blur-md p-6 rounded-2xl border border-purple-900/60 shadow-xl">
                     <h3 class="text-xs font-bold uppercase tracking-widest text-amber-400 mb-4 flex items-center gap-2">
@@ -367,7 +369,7 @@ function render() {
             <div class="space-y-6">
                 <div class="border-b border-slate-800 pb-4">
                     <h2 class="text-xl font-bold text-white">DJ & Tech Deck</h2>
-                    <p class="text-xs text-slate-400">Full Spotify integration, stage broadcasts, lighting control, and master emergency overrides.</p>
+                    <p class="text-xs text-slate-400">Full Spotify integration, stage broadcasts, visual FX, and master emergency override controls.</p>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -389,26 +391,20 @@ function render() {
                     </div>
 
                     <div class="space-y-6">
-                        <!-- Upbeat Stage Lighting Control Suite -->
+                        <!-- Stage Visual FX Controller -->
                         <div class="bg-[#121721] p-6 rounded-2xl border border-slate-800 space-y-4">
-                            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Big Screen Stage Lighting</h3>
-                            <p class="text-xs text-slate-400">Control live ambient washes, high-tempo strobe flashing, and upbeat party pulsing modes.</p>
+                            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Big Screen Visual FX</h3>
+                            <p class="text-xs text-slate-400">Trigger live celebratory and Halloween effects on the public display.</p>
                             
-                            <div class="grid grid-cols-2 md:grid-cols-3 gap-2.5">
-                                <button onclick="setLighting('ambient_orange')" class="py-2.5 px-3 rounded-xl text-xs font-bold border transition ${state.config.lighting === 'ambient_orange' ? 'bg-orange-600 border-orange-500 text-white shadow-lg' : 'bg-[#0b0e14] border-slate-800 text-orange-400'}">
-                                    🎃 Halloween Orange
+                            <div class="grid grid-cols-3 gap-3">
+                                <button onclick="setEffect('none')" class="py-2.5 rounded-xl text-xs font-bold border transition ${state.config.effect === 'none' ? 'bg-slate-700 border-slate-500 text-white' : 'bg-[#0b0e14] border-slate-800 text-slate-400'}">
+                                    Clear FX
                                 </button>
-                                <button onclick="setLighting('neon_purple')" class="py-2.5 px-3 rounded-xl text-xs font-bold border transition ${state.config.lighting === 'neon_purple' ? 'bg-purple-600 border-purple-500 text-white shadow-lg' : 'bg-[#0b0e14] border-slate-800 text-purple-400'}">
-                                    🔮 Neon Purple
+                                <button onclick="setEffect('confetti')" class="py-2.5 rounded-xl text-xs font-bold border transition ${state.config.effect === 'confetti' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-[#0b0e14] border-slate-800 text-purple-400'}">
+                                    🎃 Spooky Confetti
                                 </button>
-                                <button onclick="setLighting('party_rgb')" class="py-2.5 px-3 rounded-xl text-xs font-bold border transition ${state.config.lighting === 'party_rgb' ? 'bg-pink-600 border-pink-500 text-white shadow-lg animate-pulse' : 'bg-[#0b0e14] border-slate-800 text-pink-400'}">
-                                    ⚡ Upbeat Party RGB
-                                </button>
-                                <button onclick="setLighting('strobe_white')" class="py-2.5 px-3 rounded-xl text-xs font-bold border transition ${state.config.lighting === 'strobe_white' ? 'bg-slate-200 border-white text-black shadow-lg' : 'bg-[#0b0e14] border-slate-800 text-slate-300'}">
-                                    💥 Rapid Strobe
-                                </button>
-                                <button onclick="setLighting('blackout')" class="py-2.5 px-3 rounded-xl text-xs font-bold border transition ${state.config.lighting === 'blackout' ? 'bg-zinc-800 border-zinc-600 text-white shadow-lg' : 'bg-[#0b0e14] border-slate-800 text-zinc-500'}">
-                                    🌑 Blackout
+                                <button onclick="setEffect('fireworks')" class="py-2.5 rounded-xl text-xs font-bold border transition ${state.config.effect === 'fireworks' ? 'bg-orange-600 border-orange-500 text-white' : 'bg-[#0b0e14] border-slate-800 text-orange-400'}">
+                                    🎆 Fireworks
                                 </button>
                             </div>
                         </div>
@@ -505,8 +501,8 @@ function setQuickAnn(main, sub) {
     updateAnnouncement();
 }
 
-function setLighting(mode) {
-    state.config.lighting = mode;
+function setEffect(effectName) {
+    state.config.effect = effectName;
     saveData();
 }
 
