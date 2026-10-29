@@ -9,14 +9,14 @@ let state = {
     config: {
         emergencyActive: false,
         emergencyMessage: 'ATTENTION: AN INCIDENT HAS BEEN REPORTED. PLEASE EVACUATE THE PREMISES IMMEDIATELY VIA THE NEAREST EXIT.',
-        announcement: 'WELCOME TO THE EME DANCERS PRODUCTION EVENT',
-        subAnnouncement: 'Please visit the bar for refreshments',
+        announcement: 'WELCOME TO THE EME DANCERS SPOOKTACULAR PARTY',
+        subAnnouncement: 'Enjoy the music, drinks, and performances',
         kdsTone: 'beep',
-        kdsVolume: 0.5
+        kdsVolume: 0.5,
+        effect: 'none' // 'none', 'confetti', 'fireworks'
     }
 };
 
-// Global Form Buffer to ensure typing is never interrupted across any view
 let formState = {
     posTable: 'Table 1',
     posItem: '',
@@ -77,7 +77,6 @@ async function syncData() {
         });
         const data = await res.json();
         
-        // Absolute check: if user is currently typing in ANY input or textarea, skip rendering entirely
         const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
         const isTyping = activeTag === 'input' || activeTag === 'textarea';
 
@@ -121,12 +120,10 @@ function render() {
     const kioskEmergency = document.getElementById('kiosk-emergency-overlay');
     const kioskEmergencyMsg = document.getElementById('kiosk-emergency-msg');
 
-    // Initialize buffer values from state if empty
     if (!formState.annMain) formState.annMain = state.config.announcement || '';
     if (!formState.annSub) formState.annSub = state.config.subAnnouncement || '';
     if (!formState.adminEmergencyMsg) formState.adminEmergencyMsg = state.config.emergencyMessage || '';
 
-    // Handle Kiosk Mode (Hide Headers/Footers on Big Screen)
     if (state.view === 'ann') {
         header.classList.add('hidden');
         footer.classList.add('hidden');
@@ -172,13 +169,13 @@ function render() {
                     <div onclick="switchView('dj')" class="bg-[#121721] p-6 rounded-xl border border-slate-800 hover:border-slate-600 cursor-pointer transition shadow-lg">
                         <div class="text-xs font-bold tracking-widest text-indigo-400 uppercase mb-2">Stage & Audio</div>
                         <h3 class="text-xl font-bold text-white">DJ & Tech Deck</h3>
-                        <p class="text-xs text-slate-400 mt-2">Spotify web player, stage announcements & emergency controls.</p>
+                        <p class="text-xs text-slate-400 mt-2">Spotify player, announcements, FX & emergency controls.</p>
                     </div>
 
                     <div onclick="switchView('ann')" class="bg-[#121721] p-6 rounded-xl border border-slate-800 hover:border-slate-600 cursor-pointer transition shadow-lg">
                         <div class="text-xs font-bold tracking-widest text-purple-400 uppercase mb-2">Public Kiosk</div>
                         <h3 class="text-xl font-bold text-white">Big Screen (ANN / CDS)</h3>
-                        <p class="text-xs text-slate-400 mt-2">Full-screen display for TV. Live announcements and order pickup board.</p>
+                        <p class="text-xs text-slate-400 mt-2">Full-screen Halloween display with live CDS collection board.</p>
                     </div>
 
                     <div onclick="switchView('admin')" class="bg-[#121721] p-6 rounded-xl border border-slate-800 hover:border-slate-600 cursor-pointer transition shadow-lg">
@@ -191,51 +188,79 @@ function render() {
         `;
     }
 
-    // 2. BIG SCREEN VIEW (ANN + CDS FULL SCREEN KIOSK)
+    // 2. BIG SCREEN VIEW (CLEAN HALLOWEEN AESTHETIC + FX + CDS)
     else if (state.view === 'ann') {
         const preparingOrders = state.orders.filter(o => o.status === 'in_prog');
         const readyOrders = state.orders.filter(o => o.status === 'ready');
 
-        container.className = "w-full min-h-screen bg-[#07090e] p-8 md:p-12 flex flex-col justify-between";
-        container.innerHTML = `
-            <div class="flex items-center justify-between border-b border-indigo-500/20 pb-6">
-                <div>
-                    <span class="font-brand font-black text-2xl md:text-3xl tracking-widest text-white">EME DANCERS</span>
-                    <span class="text-xs font-bold uppercase tracking-widest text-indigo-400 block">STAGE & EVENT DISPLAY</span>
+        let effectHTML = '';
+        if (state.config.effect === 'confetti') {
+            effectHTML = `
+                <div class="absolute inset-0 pointer-events-none overflow-hidden z-10">
+                    <div class="absolute inset-0 bg-[radial-gradient(circle,rgba(249,115,22,0.12)_0%,transparent_70%)]"></div>
+                    <div class="confetti-streamer">🎃 🦇 👻 🍬 🕸️ 🔮 🎃 🦇 👻 🍬 🕸️ 🔮</div>
                 </div>
-                <div class="bg-indigo-950/60 border border-indigo-500/30 px-4 py-2 rounded-full text-indigo-300 font-mono text-xs font-bold tracking-widest">
-                    LIVE SYSTEM SYNCED
+            `;
+        } else if (state.config.effect === 'fireworks') {
+            effectHTML = `
+                <div class="absolute inset-0 pointer-events-none overflow-hidden z-10 bg-purple-950/20">
+                    <div class="absolute top-12 left-1/4 text-7xl animate-bounce">🎇</div>
+                    <div class="absolute top-24 right-1/4 text-7xl animate-bounce" style="animation-delay: 0.2s;">🎆</div>
+                    <div class="absolute bottom-1/3 left-1/3 text-7xl animate-bounce" style="animation-delay: 0.4s;">💥</div>
+                    <div class="absolute top-1/2 right-1/3 text-7xl animate-bounce" style="animation-delay: 0.6s;">✨</div>
+                </div>
+            `;
+        }
+
+        container.className = "w-full min-h-screen bg-gradient-to-b from-[#0f071c] via-[#07040d] to-[#040207] p-8 md:p-14 flex flex-col justify-between relative overflow-hidden";
+        container.innerHTML = `
+            ${effectHTML}
+
+            <!-- Spooky Ambient Glows -->
+            <div class="absolute -top-32 -left-32 w-96 h-96 bg-orange-600/15 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -bottom-32 -right-32 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl pointer-events-none"></div>
+
+            <!-- Header Branding (Cleaned up as requested) -->
+            <div class="flex items-center justify-between border-b border-orange-500/20 pb-6 relative z-20">
+                <div class="flex items-center gap-3">
+                    <span class="text-3xl animate-pulse">🎃</span>
+                    <span class="font-brand font-black text-3xl md:text-4xl tracking-widest text-orange-400 drop-shadow-[0_0_20px_rgba(249,115,22,0.5)]">EME DANCERS</span>
+                </div>
+                <div class="text-purple-400 font-mono text-xs font-bold tracking-widest uppercase">
+                    🕸️ HALLOWEEN PRODUCTION 🕸️
                 </div>
             </div>
 
-            <div class="my-auto py-10 text-center space-y-4">
-                <h1 class="font-brand text-5xl md:text-7xl font-black text-white tracking-tight leading-tight uppercase drop-shadow-2xl">
+            <!-- Main Center Announcement Text -->
+            <div class="my-auto py-12 text-center space-y-6 relative z-20">
+                <h1 class="font-brand text-5xl md:text-8xl font-black text-white tracking-tight leading-tight uppercase drop-shadow-[0_0_40px_rgba(168,85,247,0.4)]">
                     ${state.config.announcement}
                 </h1>
-                ${state.config.subAnnouncement ? `<p class="text-indigo-300 text-xl md:text-2xl font-semibold tracking-wide">${state.config.subAnnouncement}</p>` : ''}
+                ${state.config.subAnnouncement ? `<p class="text-orange-300 text-2xl md:text-3xl font-semibold tracking-wide drop-shadow">${state.config.subAnnouncement}</p>` : ''}
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-slate-800/80 pt-8">
-                <div class="bg-[#0f141d] p-6 rounded-2xl border border-slate-800">
+            <!-- CDS (Customer Order Collection Display) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-purple-950/80 pt-8 relative z-20">
+                <div class="bg-[#120b1e]/90 backdrop-blur-md p-6 rounded-2xl border border-purple-900/60 shadow-xl">
                     <h3 class="text-xs font-bold uppercase tracking-widest text-amber-400 mb-4 flex items-center gap-2">
-                        <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span> PREPARING FOOD & DRINK
+                        <span class="w-3 h-3 rounded-full bg-amber-400 animate-pulse"></span> 🧪 POTION BREWING (PREPARING)
                     </h3>
                     <div class="flex flex-wrap gap-3">
-                        ${preparingOrders.length === 0 ? '<span class="text-slate-600 text-sm">No orders currently preparing</span>' : ''}
+                        ${preparingOrders.length === 0 ? '<span class="text-slate-500 text-sm italic">No orders currently brewing</span>' : ''}
                         ${preparingOrders.map(o => `
-                            <span class="bg-slate-800 border border-slate-700 px-4 py-2 rounded-xl text-lg font-bold text-slate-200">
+                            <span class="bg-purple-950/70 border border-purple-800 px-4 py-2 rounded-xl text-lg font-bold text-purple-200">
                                 ${o.table}
                             </span>
                         `).join('')}
                     </div>
                 </div>
 
-                <div class="bg-[#0f141d] p-6 rounded-2xl border border-emerald-500/30 shadow-[0_0_30px_rgba(16,185,129,0.1)]">
+                <div class="bg-[#120b1e]/90 backdrop-blur-md p-6 rounded-2xl border border-emerald-500/30 shadow-[0_0_30px_rgba(16,185,129,0.1)]">
                     <h3 class="text-xs font-bold uppercase tracking-widest text-emerald-400 mb-4 flex items-center gap-2">
-                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span> READY FOR PICKUP
+                        <span class="w-3 h-3 rounded-full bg-emerald-400 animate-ping"></span> 🍬 READY FOR COLLECTION
                     </h3>
                     <div class="flex flex-wrap gap-3">
-                        ${readyOrders.length === 0 ? '<span class="text-slate-600 text-sm">No orders ready for pickup</span>' : ''}
+                        ${readyOrders.length === 0 ? '<span class="text-slate-500 text-sm italic">No orders ready for collection</span>' : ''}
                         ${readyOrders.map(o => `
                             <span class="bg-emerald-600/20 border border-emerald-500/50 px-5 py-2.5 rounded-xl text-xl font-black text-emerald-300 animate-pulse">
                                 ${o.table}
@@ -247,7 +272,7 @@ function render() {
         `;
     }
 
-    // 3. POS VIEW (Buffered with oninput protection)
+    // 3. POS VIEW
     else if (state.view === 'pos') {
         container.className = "max-w-3xl mx-auto p-6 md:p-10";
         container.innerHTML = `
@@ -265,7 +290,7 @@ function render() {
 
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Order Items / Notes</label>
-                        <textarea id="pos-item" oninput="formState.posItem = this.value" placeholder="e.g., 2x Burgers, 1x Cola (No Ice)" class="w-full bg-[#0b0e14] border border-slate-700 p-3.5 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500 h-28 resize-none">${formState.posItem}</textarea>
+                        <textarea id="pos-item" oninput="formState.posItem = this.value" placeholder="e.g., 2x Witches Brew, 1x Monster Burger" class="w-full bg-[#0b0e14] border border-slate-700 p-3.5 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500 h-28 resize-none">${formState.posItem}</textarea>
                     </div>
 
                     <button onclick="submitOrder()" class="w-full bg-indigo-600 hover:bg-indigo-500 py-3.5 rounded-xl font-bold text-sm text-white transition shadow-lg">
@@ -344,11 +369,11 @@ function render() {
             <div class="space-y-6">
                 <div class="border-b border-slate-800 pb-4">
                     <h2 class="text-xl font-bold text-white">DJ & Tech Deck</h2>
-                    <p class="text-xs text-slate-400">Full Spotify integration, stage broadcasts, and master emergency override controls.</p>
+                    <p class="text-xs text-slate-400">Full Spotify integration, stage broadcasts, visual FX, and master emergency override controls.</p>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div class="bg-[#121721] p-6 rounded-2xl border border-slate-800 space-y-4 flex flex-col h-[520px]">
+                    <div class="bg-[#121721] p-6 rounded-2xl border border-slate-800 space-y-4 flex flex-col h-[560px]">
                         <div class="flex items-center justify-between">
                             <h3 class="text-sm font-bold text-white uppercase tracking-wider">Spotify Web Player</h3>
                             <a href="https://open.spotify.com" target="_blank" class="text-xs text-indigo-400 hover:underline">Open in new tab ↗</a>
@@ -366,14 +391,33 @@ function render() {
                     </div>
 
                     <div class="space-y-6">
+                        <!-- Stage Visual FX Controller -->
+                        <div class="bg-[#121721] p-6 rounded-2xl border border-slate-800 space-y-4">
+                            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Big Screen Visual FX</h3>
+                            <p class="text-xs text-slate-400">Trigger live celebratory and Halloween effects on the public display.</p>
+                            
+                            <div class="grid grid-cols-3 gap-3">
+                                <button onclick="setEffect('none')" class="py-2.5 rounded-xl text-xs font-bold border transition ${state.config.effect === 'none' ? 'bg-slate-700 border-slate-500 text-white' : 'bg-[#0b0e14] border-slate-800 text-slate-400'}">
+                                    Clear FX
+                                </button>
+                                <button onclick="setEffect('confetti')" class="py-2.5 rounded-xl text-xs font-bold border transition ${state.config.effect === 'confetti' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-[#0b0e14] border-slate-800 text-purple-400'}">
+                                    🎃 Spooky Confetti
+                                </button>
+                                <button onclick="setEffect('fireworks')" class="py-2.5 rounded-xl text-xs font-bold border transition ${state.config.effect === 'fireworks' ? 'bg-orange-600 border-orange-500 text-white' : 'bg-[#0b0e14] border-slate-800 text-orange-400'}">
+                                    🎆 Fireworks
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Broadcast Controller -->
                         <div class="bg-[#121721] p-6 rounded-2xl border border-slate-800 space-y-4">
                             <h3 class="text-sm font-bold text-white uppercase tracking-wider">Push to Big Screen</h3>
-                            <input type="text" id="ann-main" value="${formState.annMain}" oninput="formState.annMain = this.value" placeholder="Main Title (e.g., NEXT ACT: EME JUNIORS)" class="w-full bg-[#0b0e14] border border-slate-700 p-3 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500">
+                            <input type="text" id="ann-main" value="${formState.annMain}" oninput="formState.annMain = this.value" placeholder="Main Title (e.g., COSTUME CONTEST NOW)" class="w-full bg-[#0b0e14] border border-slate-700 p-3 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500">
                             <input type="text" id="ann-sub" value="${formState.annSub}" oninput="formState.annSub = this.value" placeholder="Sub-text (optional)" class="w-full bg-[#0b0e14] border border-slate-700 p-3 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500">
                             
                             <div class="flex gap-2">
-                                <button onclick="setQuickAnn('SHOW STARTING IN 5 MINUTES', 'Please take your seats')" class="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 py-1.5 px-3 rounded-lg border border-slate-700">Preset: 5 Mins</button>
-                                <button onclick="setQuickAnn('WELCOME TO EME DANCERS', 'Enjoy the show')" class="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 py-1.5 px-3 rounded-lg border border-slate-700">Preset: Welcome</button>
+                                <button onclick="setQuickAnn('COSTUME CONTEST IN 5 MINS', 'Get ready on stage')" class="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 py-1.5 px-3 rounded-lg border border-slate-700">Preset: Contest</button>
+                                <button onclick="setQuickAnn('HAPPY HALLOWEEN!', 'Enjoy the party')" class="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 py-1.5 px-3 rounded-lg border border-slate-700">Preset: Halloween</button>
                             </div>
 
                             <button onclick="updateAnnouncement()" class="w-full bg-indigo-600 hover:bg-indigo-500 py-3 rounded-xl font-bold text-sm text-white transition">
@@ -381,9 +425,9 @@ function render() {
                             </button>
                         </div>
 
+                        <!-- Emergency Controls -->
                         <div class="bg-[#121721] p-6 rounded-2xl border ${state.config.emergencyActive ? 'border-rose-500 bg-rose-950/20' : 'border-slate-800'} space-y-3">
                             <h3 class="text-sm font-bold ${state.config.emergencyActive ? 'text-rose-400 animate-pulse' : 'text-slate-300'} uppercase tracking-wider">Emergency Alarm Master Control</h3>
-                            <p class="text-xs text-slate-400">Triggers the safety warning overlay and audio evacuation siren on the public Big Screen display.</p>
                             <button onclick="toggleEmergency()" class="w-full py-4 rounded-xl font-black text-sm tracking-widest text-white transition ${state.config.emergencyActive ? 'bg-emerald-600 hover:bg-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.4)]' : 'bg-rose-600 hover:bg-rose-500 shadow-lg'}">
                                 ${state.config.emergencyActive ? 'RESET / DEACTIVATE EMERGENCY ALARM' : 'TRIGGER EMERGENCY ALARM'}
                             </button>
@@ -428,7 +472,7 @@ function submitOrder() {
     const item = formState.posItem;
     if (!table || !item) return;
     state.orders.push({ table, item, status: 'ordered' });
-    formState.posItem = ''; // clear order note buffer after submit
+    formState.posItem = '';
     saveData();
     alert("Order submitted!");
 }
@@ -455,6 +499,11 @@ function setQuickAnn(main, sub) {
     formState.annMain = main;
     formState.annSub = sub;
     updateAnnouncement();
+}
+
+function setEffect(effectName) {
+    state.config.effect = effectName;
+    saveData();
 }
 
 function toggleEmergency() {
