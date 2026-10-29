@@ -27,6 +27,7 @@ let formState = {
 
 let emergencyAudioCtx = null;
 let emergencyOscillator = null;
+let animCanvasLoop = null;
 
 // Audio Synth for Evacuation Tone
 function playEmergencyTone() {
@@ -112,6 +113,135 @@ function switchView(viewName) {
     render();
 }
 
+// --- SMOOTH CANVAS ANIMATION ENGINES ---
+function startCanvasEffect(type) {
+    if (animCanvasLoop) cancelAnimationFrame(animCanvasLoop);
+    const canvas = document.getElementById('fx-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    const resize = () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    };
+    resize();
+
+    // 1. FALLING CONFETTI ANIMATION
+    if (type === 'confetti') {
+        const colors = ['#f97316', '#a855f7', '#ec4899', '#3b82f6', '#10b981', '#eab308'];
+        const pieces = Array.from({ length: 120 }, () => ({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height - canvas.height,
+            size: Math.random() * 8 + 4,
+            speedY: Math.random() * 3 + 2,
+            speedX: Math.random() * 2 - 1,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            rotation: Math.random() * 360,
+            rotSpeed: Math.random() * 6 - 3
+        }));
+
+        function drawConfetti() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            pieces.forEach(p => {
+                p.y += p.speedY;
+                p.x += Math.sin(p.y * 0.02) + p.speedX;
+                p.rotation += p.rotSpeed;
+
+                if (p.y > canvas.height) {
+                    p.y = -10;
+                    p.x = Math.random() * canvas.width;
+                }
+
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate((p.rotation * Math.PI) / 180);
+                ctx.fillStyle = p.color;
+                ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 1.5);
+                ctx.restore();
+            });
+            animCanvasLoop = requestAnimationFrame(drawConfetti);
+        }
+        drawConfetti();
+    } 
+
+    // 2. FLYING & EXPLODING FIREWORKS ANIMATION
+    else if (type === 'fireworks') {
+        let rockets = [];
+        let particles = [];
+        const colors = ['#f97316', '#a855f7', '#38bdf8', '#f43f5e', '#facc15', '#4ade80'];
+
+        function launchRocket() {
+            rockets.push({
+                x: Math.random() * (canvas.width - 200) + 100,
+                y: canvas.height,
+                targetY: Math.random() * (canvas.height * 0.4) + 100,
+                speed: Math.random() * 4 + 7,
+                color: colors[Math.floor(Math.random() * colors.length)]
+            });
+        }
+
+        function createBurst(x, y, color) {
+            for (let i = 0; i < 45; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 6 + 1;
+                particles.push({
+                    x, y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    alpha: 1,
+                    decay: Math.random() * 0.02 + 0.015,
+                    color
+                });
+            }
+        }
+
+        let launchTimer = 0;
+
+        function drawFireworks() {
+            ctx.fillStyle = 'rgba(7, 4, 13, 0.25)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            launchTimer++;
+            if (launchTimer % 20 === 0) launchRocket();
+
+            // Draw and update rising rockets
+            rockets.forEach((r, idx) => {
+                r.y -= r.speed;
+                ctx.beginPath();
+                ctx.arc(r.x, r.y, 3, 0, Math.PI * 2);
+                ctx.fillStyle = r.color;
+                ctx.fill();
+
+                if (r.y <= r.targetY) {
+                    createBurst(r.x, r.y, r.color);
+                    rockets.splice(idx, 1);
+                }
+            });
+
+            // Draw and update exploding particles
+            particles.forEach((p, idx) => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.08; // gravity
+                p.alpha -= p.decay;
+
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, p.alpha);
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
+                ctx.fillStyle = p.color;
+                ctx.fill();
+                ctx.restore();
+
+                if (p.alpha <= 0) particles.splice(idx, 1);
+            });
+
+            animCanvasLoop = requestAnimationFrame(drawFireworks);
+        }
+        drawFireworks();
+    }
+}
+
 // --- MAIN RENDER ENGINE ---
 function render() {
     const container = document.getElementById('app-container');
@@ -188,39 +318,21 @@ function render() {
         `;
     }
 
-    // 2. BIG SCREEN VIEW (CLEAN HALLOWEEN AESTHETIC + FX + CDS)
+    // 2. BIG SCREEN VIEW (CANVAS ANIMATIONS + CLEAN HALLOWEEN THEME + CDS)
     else if (state.view === 'ann') {
         const preparingOrders = state.orders.filter(o => o.status === 'in_prog');
         const readyOrders = state.orders.filter(o => o.status === 'ready');
 
-        let effectHTML = '';
-        if (state.config.effect === 'confetti') {
-            effectHTML = `
-                <div class="absolute inset-0 pointer-events-none overflow-hidden z-10">
-                    <div class="absolute inset-0 bg-[radial-gradient(circle,rgba(249,115,22,0.12)_0%,transparent_70%)]"></div>
-                    <div class="confetti-streamer">🎃 🦇 👻 🍬 🕸️ 🔮 🎃 🦇 👻 🍬 🕸️ 🔮</div>
-                </div>
-            `;
-        } else if (state.config.effect === 'fireworks') {
-            effectHTML = `
-                <div class="absolute inset-0 pointer-events-none overflow-hidden z-10 bg-purple-950/20">
-                    <div class="absolute top-12 left-1/4 text-7xl animate-bounce">🎇</div>
-                    <div class="absolute top-24 right-1/4 text-7xl animate-bounce" style="animation-delay: 0.2s;">🎆</div>
-                    <div class="absolute bottom-1/3 left-1/3 text-7xl animate-bounce" style="animation-delay: 0.4s;">💥</div>
-                    <div class="absolute top-1/2 right-1/3 text-7xl animate-bounce" style="animation-delay: 0.6s;">✨</div>
-                </div>
-            `;
-        }
-
         container.className = "w-full min-h-screen bg-gradient-to-b from-[#0f071c] via-[#07040d] to-[#040207] p-8 md:p-14 flex flex-col justify-between relative overflow-hidden";
         container.innerHTML = `
-            ${effectHTML}
+            <!-- Live Canvas Physics Overlay -->
+            <canvas id="fx-canvas" class="absolute inset-0 pointer-events-none z-10"></canvas>
 
             <!-- Spooky Ambient Glows -->
             <div class="absolute -top-32 -left-32 w-96 h-96 bg-orange-600/15 rounded-full blur-3xl pointer-events-none"></div>
             <div class="absolute -bottom-32 -right-32 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl pointer-events-none"></div>
 
-            <!-- Header Branding (Cleaned up as requested) -->
+            <!-- Header Branding -->
             <div class="flex items-center justify-between border-b border-orange-500/20 pb-6 relative z-20">
                 <div class="flex items-center gap-3">
                     <span class="text-3xl animate-pulse">🎃</span>
@@ -270,6 +382,9 @@ function render() {
                 </div>
             </div>
         `;
+
+        // Launch Canvas Effect Frame Engine
+        setTimeout(() => startCanvasEffect(state.config.effect), 50);
     }
 
     // 3. POS VIEW
@@ -393,18 +508,18 @@ function render() {
                     <div class="space-y-6">
                         <!-- Stage Visual FX Controller -->
                         <div class="bg-[#121721] p-6 rounded-2xl border border-slate-800 space-y-4">
-                            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Big Screen Visual FX</h3>
-                            <p class="text-xs text-slate-400">Trigger live celebratory and Halloween effects on the public display.</p>
+                            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Big Screen Visual FX Controls</h3>
+                            <p class="text-xs text-slate-400">Trigger real-time falling confetti or flying fireworks across the main TV screen.</p>
                             
                             <div class="grid grid-cols-3 gap-3">
-                                <button onclick="setEffect('none')" class="py-2.5 rounded-xl text-xs font-bold border transition ${state.config.effect === 'none' ? 'bg-slate-700 border-slate-500 text-white' : 'bg-[#0b0e14] border-slate-800 text-slate-400'}">
+                                <button onclick="setEffect('none')" class="py-3 rounded-xl text-xs font-bold border transition ${state.config.effect === 'none' ? 'bg-slate-700 border-slate-500 text-white shadow-lg' : 'bg-[#0b0e14] border-slate-800 text-slate-400'}">
                                     Clear FX
                                 </button>
-                                <button onclick="setEffect('confetti')" class="py-2.5 rounded-xl text-xs font-bold border transition ${state.config.effect === 'confetti' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-[#0b0e14] border-slate-800 text-purple-400'}">
-                                    🎃 Spooky Confetti
+                                <button onclick="setEffect('confetti')" class="py-3 rounded-xl text-xs font-bold border transition ${state.config.effect === 'confetti' ? 'bg-purple-600 border-purple-500 text-white shadow-lg' : 'bg-[#0b0e14] border-slate-800 text-purple-400'}">
+                                    🎉 Falling Confetti
                                 </button>
-                                <button onclick="setEffect('fireworks')" class="py-2.5 rounded-xl text-xs font-bold border transition ${state.config.effect === 'fireworks' ? 'bg-orange-600 border-orange-500 text-white' : 'bg-[#0b0e14] border-slate-800 text-orange-400'}">
-                                    🎆 Fireworks
+                                <button onclick="setEffect('fireworks')" class="py-3 rounded-xl text-xs font-bold border transition ${state.config.effect === 'fireworks' ? 'bg-orange-600 border-orange-500 text-white shadow-lg' : 'bg-[#0b0e14] border-slate-800 text-orange-400'}">
+                                    🎆 Flying Fireworks
                                 </button>
                             </div>
                         </div>
