@@ -113,7 +113,7 @@ function switchView(viewName) {
     render();
 }
 
-// --- SMOOTH CANVAS ANIMATION ENGINES ---
+// --- SMOOTH CANVAS PHYSICS ENGINES (SPARKLING CIRCLES & PATTERN FIREWORKS) ---
 function startCanvasEffect(type) {
     if (animCanvasLoop) cancelAnimationFrame(animCanvasLoop);
     const canvas = document.getElementById('fx-canvas');
@@ -125,71 +125,99 @@ function startCanvasEffect(type) {
         canvas.height = window.innerHeight;
     };
     resize();
+    window.addEventListener('resize', resize);
 
-    // 1. FALLING CONFETTI ANIMATION
+    // 1. SPARKLING MULTI-COLORED CIRCLE CONFETTI
     if (type === 'confetti') {
-        const colors = ['#f97316', '#a855f7', '#ec4899', '#3b82f6', '#10b981', '#eab308'];
-        const pieces = Array.from({ length: 120 }, () => ({
+        const colors = ['#f97316', '#a855f7', '#ec4899', '#38bdf8', '#34d399', '#facc15', '#ffffff'];
+        const circles = Array.from({ length: 150 }, () => ({
             x: Math.random() * canvas.width,
             y: Math.random() * canvas.height - canvas.height,
-            size: Math.random() * 8 + 4,
-            speedY: Math.random() * 3 + 2,
-            speedX: Math.random() * 2 - 1,
+            radius: Math.random() * 6 + 3,
+            speedY: Math.random() * 2.5 + 1.5,
+            speedX: Math.random() * 1.5 - 0.75,
             color: colors[Math.floor(Math.random() * colors.length)],
-            rotation: Math.random() * 360,
-            rotSpeed: Math.random() * 6 - 3
+            sparkleSpeed: Math.random() * 0.1 + 0.05,
+            sparklePhase: Math.random() * Math.PI * 2
         }));
 
         function drawConfetti() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            pieces.forEach(p => {
-                p.y += p.speedY;
-                p.x += Math.sin(p.y * 0.02) + p.speedX;
-                p.rotation += p.rotSpeed;
+            
+            circles.forEach(c => {
+                c.y += c.speedY;
+                c.x += Math.sin(c.y * 0.03) + c.speedX;
+                c.sparklePhase += c.sparkleSpeed;
 
-                if (p.y > canvas.height) {
-                    p.y = -10;
-                    p.x = Math.random() * canvas.width;
+                if (c.y > canvas.height + 10) {
+                    c.y = -10;
+                    c.x = Math.random() * canvas.width;
                 }
 
+                // Calculate sparkle alpha/glow intensity
+                const alpha = (Math.sin(c.sparklePhase) + 1) / 2 * 0.5 + 0.5;
+
                 ctx.save();
-                ctx.translate(p.x, p.y);
-                ctx.rotate((p.rotation * Math.PI) / 180);
-                ctx.fillStyle = p.color;
-                ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 1.5);
+                ctx.globalAlpha = alpha;
+                ctx.beginPath();
+                ctx.arc(c.x, c.y, c.radius, 0, Math.PI * 2);
+                ctx.fillStyle = c.color;
+                ctx.shadowColor = c.color;
+                ctx.shadowBlur = 10; // Gives it a glowing/sparkling look
+                ctx.fill();
                 ctx.restore();
             });
+
             animCanvasLoop = requestAnimationFrame(drawConfetti);
         }
         drawConfetti();
     } 
 
-    // 2. FLYING & EXPLODING FIREWORKS ANIMATION
+    // 2. RISING LINES & COMPLEX EXPLODING PATTERN FIREWORKS
     else if (type === 'fireworks') {
         let rockets = [];
         let particles = [];
-        const colors = ['#f97316', '#a855f7', '#38bdf8', '#f43f5e', '#facc15', '#4ade80'];
+        const colors = ['#f97316', '#a855f7', '#38bdf8', '#f43f5e', '#facc15', '#4ade80', '#ffffff'];
+        
+        // Different explosion pattern layouts: 'circle', 'ring', 'star'
+        const patterns = ['circle', 'ring', 'star'];
 
         function launchRocket() {
             rockets.push({
-                x: Math.random() * (canvas.width - 200) + 100,
+                x: Math.random() * (canvas.width - 300) + 150,
                 y: canvas.height,
-                targetY: Math.random() * (canvas.height * 0.4) + 100,
-                speed: Math.random() * 4 + 7,
-                color: colors[Math.floor(Math.random() * colors.length)]
+                targetY: Math.random() * (canvas.height * 0.45) + 80,
+                speed: Math.random() * 3 + 6,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                pattern: patterns[Math.floor(Math.random() * patterns.length)]
             });
         }
 
-        function createBurst(x, y, color) {
-            for (let i = 0; i < 45; i++) {
-                const angle = Math.random() * Math.PI * 2;
-                const speed = Math.random() * 6 + 1;
+        function createBurst(x, y, color, pattern) {
+            const count = pattern === 'ring' ? 60 : 50;
+            for (let i = 0; i < count; i++) {
+                let angle, speed;
+                
+                if (pattern === 'ring') {
+                    // Perfect expanding geometric ring
+                    angle = (i / count) * Math.PI * 2;
+                    speed = 5;
+                } else if (pattern === 'star') {
+                    // Starburst spiked trajectory
+                    angle = (i / count) * Math.PI * 2;
+                    speed = (i % 2 === 0) ? 7 : 3.5;
+                } else {
+                    // Standard multi-directional bursting circle
+                    angle = Math.random() * Math.PI * 2;
+                    speed = Math.random() * 5 + 1.5;
+                }
+
                 particles.push({
                     x, y,
                     vx: Math.cos(angle) * speed,
                     vy: Math.sin(angle) * speed,
                     alpha: 1,
-                    decay: Math.random() * 0.02 + 0.015,
+                    decay: Math.random() * 0.015 + 0.01,
                     color
                 });
             }
@@ -198,38 +226,47 @@ function startCanvasEffect(type) {
         let launchTimer = 0;
 
         function drawFireworks() {
-            ctx.fillStyle = 'rgba(7, 4, 13, 0.25)';
+            // Semi-transparent trailing fade for gorgeous light streaks
+            ctx.fillStyle = 'rgba(7, 4, 13, 0.2)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             launchTimer++;
-            if (launchTimer % 20 === 0) launchRocket();
+            if (launchTimer % 25 === 0) launchRocket();
 
-            // Draw and update rising rockets
+            // Draw rising tracer lines
             rockets.forEach((r, idx) => {
+                const prevY = r.y;
                 r.y -= r.speed;
+
                 ctx.beginPath();
-                ctx.arc(r.x, r.y, 3, 0, Math.PI * 2);
-                ctx.fillStyle = r.color;
-                ctx.fill();
+                ctx.moveTo(r.x, prevY);
+                ctx.lineTo(r.x, r.y);
+                ctx.strokeStyle = r.color;
+                ctx.lineWidth = 2.5;
+                ctx.shadowColor = r.color;
+                ctx.shadowBlur = 8;
+                ctx.stroke();
 
                 if (r.y <= r.targetY) {
-                    createBurst(r.x, r.y, r.color);
+                    createBurst(r.x, r.y, r.color, r.pattern);
                     rockets.splice(idx, 1);
                 }
             });
 
-            // Draw and update exploding particles
+            // Draw exploding particles
             particles.forEach((p, idx) => {
                 p.x += p.vx;
                 p.y += p.vy;
-                p.vy += 0.08; // gravity
+                p.vy += 0.06; // Gravity drop
                 p.alpha -= p.decay;
 
                 ctx.save();
                 ctx.globalAlpha = Math.max(0, p.alpha);
                 ctx.beginPath();
-                ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
+                ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
                 ctx.fillStyle = p.color;
+                ctx.shadowColor = p.color;
+                ctx.shadowBlur = 6;
                 ctx.fill();
                 ctx.restore();
 
@@ -318,7 +355,7 @@ function render() {
         `;
     }
 
-    // 2. BIG SCREEN VIEW (CANVAS ANIMATIONS + CLEAN HALLOWEEN THEME + CDS)
+    // 2. BIG SCREEN VIEW (CANVAS PHYSICS + CLEAN HALLOWEEN THEME + CDS)
     else if (state.view === 'ann') {
         const preparingOrders = state.orders.filter(o => o.status === 'in_prog');
         const readyOrders = state.orders.filter(o => o.status === 'ready');
@@ -509,17 +546,17 @@ function render() {
                         <!-- Stage Visual FX Controller -->
                         <div class="bg-[#121721] p-6 rounded-2xl border border-slate-800 space-y-4">
                             <h3 class="text-sm font-bold text-white uppercase tracking-wider">Big Screen Visual FX Controls</h3>
-                            <p class="text-xs text-slate-400">Trigger real-time falling confetti or flying fireworks across the main TV screen.</p>
+                            <p class="text-xs text-slate-400">Trigger sparkling confetti circles or pattern fireworks across the main TV screen.</p>
                             
                             <div class="grid grid-cols-3 gap-3">
                                 <button onclick="setEffect('none')" class="py-3 rounded-xl text-xs font-bold border transition ${state.config.effect === 'none' ? 'bg-slate-700 border-slate-500 text-white shadow-lg' : 'bg-[#0b0e14] border-slate-800 text-slate-400'}">
                                     Clear FX
                                 </button>
                                 <button onclick="setEffect('confetti')" class="py-3 rounded-xl text-xs font-bold border transition ${state.config.effect === 'confetti' ? 'bg-purple-600 border-purple-500 text-white shadow-lg' : 'bg-[#0b0e14] border-slate-800 text-purple-400'}">
-                                    🎉 Falling Confetti
+                                    ✨ Sparkling Confetti
                                 </button>
                                 <button onclick="setEffect('fireworks')" class="py-3 rounded-xl text-xs font-bold border transition ${state.config.effect === 'fireworks' ? 'bg-orange-600 border-orange-500 text-white shadow-lg' : 'bg-[#0b0e14] border-slate-800 text-orange-400'}">
-                                    🎆 Flying Fireworks
+                                    🎆 Pattern Fireworks
                                 </button>
                             </div>
                         </div>
