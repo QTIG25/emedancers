@@ -344,4 +344,184 @@ function render() {
                                         <button onclick="setOrderStatus(${idx}, 'in_prog')" class="bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 text-xs font-bold py-2 rounded-lg transition border border-blue-500/30">
                                             Start Prep
                                         </button>
-                                        <button onclick="setOrderStatus(${idx}, 'ready')" class="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 text-xs font-bold py-2 rounded-lg transition border border
+                                        <button onclick="setOrderStatus(${idx}, 'ready')" class="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 text-xs font-bold py-2 rounded-lg transition border border-emerald-500/30">
+                                            Mark Ready
+                                        </button>
+                                    </div>
+                                    <button onclick="removeOrder(${idx})" class="w-full bg-slate-800 hover:bg-rose-900/30 text-slate-400 hover:text-rose-300 text-xs font-bold py-2 rounded-lg transition border border-slate-700">
+                                        Complete & Delete Order
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    // 5. DJ & TECH CONTROL DECK
+    else if (state.view === 'dj') {
+        container.className = "max-w-7xl mx-auto p-6 md:p-10 w-full flex-1";
+        container.innerHTML = `
+            <div class="space-y-6">
+                <div class="border-b border-slate-800 pb-4">
+                    <h2 class="text-xl font-bold text-white">DJ & Tech Deck</h2>
+                    <p class="text-xs text-slate-400">Full Spotify integration, stage broadcasts, lighting control, and master emergency overrides.</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-[#121721] p-6 rounded-2xl border border-slate-800 space-y-4 flex flex-col h-[560px]">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Spotify Web Player</h3>
+                            <a href="https://open.spotify.com" target="_blank" class="text-xs text-indigo-400 hover:underline">Open in new tab ↗</a>
+                        </div>
+                        <div class="w-full flex-1 rounded-xl overflow-hidden border border-slate-800 bg-black">
+                            <iframe 
+                                src="https://open.spotify.com" 
+                                width="100%" 
+                                height="100%" 
+                                frameBorder="0" 
+                                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
+                                loading="lazy">
+                            </iframe>
+                        </div>
+                    </div>
+
+                    <div class="space-y-6">
+                        <!-- Upbeat Stage Lighting Control Suite -->
+                        <div class="bg-[#121721] p-6 rounded-2xl border border-slate-800 space-y-4">
+                            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Big Screen Stage Lighting</h3>
+                            <p class="text-xs text-slate-400">Control live ambient washes, high-tempo strobe flashing, and upbeat party pulsing modes.</p>
+                            
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-2.5">
+                                <button onclick="setLighting('ambient_orange')" class="py-2.5 px-3 rounded-xl text-xs font-bold border transition ${state.config.lighting === 'ambient_orange' ? 'bg-orange-600 border-orange-500 text-white shadow-lg' : 'bg-[#0b0e14] border-slate-800 text-orange-400'}">
+                                    🎃 Halloween Orange
+                                </button>
+                                <button onclick="setLighting('neon_purple')" class="py-2.5 px-3 rounded-xl text-xs font-bold border transition ${state.config.lighting === 'neon_purple' ? 'bg-purple-600 border-purple-500 text-white shadow-lg' : 'bg-[#0b0e14] border-slate-800 text-purple-400'}">
+                                    🔮 Neon Purple
+                                </button>
+                                <button onclick="setLighting('party_rgb')" class="py-2.5 px-3 rounded-xl text-xs font-bold border transition ${state.config.lighting === 'party_rgb' ? 'bg-pink-600 border-pink-500 text-white shadow-lg animate-pulse' : 'bg-[#0b0e14] border-slate-800 text-pink-400'}">
+                                    ⚡ Upbeat Party RGB
+                                </button>
+                                <button onclick="setLighting('strobe_white')" class="py-2.5 px-3 rounded-xl text-xs font-bold border transition ${state.config.lighting === 'strobe_white' ? 'bg-slate-200 border-white text-black shadow-lg' : 'bg-[#0b0e14] border-slate-800 text-slate-300'}">
+                                    💥 Rapid Strobe
+                                </button>
+                                <button onclick="setLighting('blackout')" class="py-2.5 px-3 rounded-xl text-xs font-bold border transition ${state.config.lighting === 'blackout' ? 'bg-zinc-800 border-zinc-600 text-white shadow-lg' : 'bg-[#0b0e14] border-slate-800 text-zinc-500'}">
+                                    🌑 Blackout
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Broadcast Controller -->
+                        <div class="bg-[#121721] p-6 rounded-2xl border border-slate-800 space-y-4">
+                            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Push to Big Screen</h3>
+                            <input type="text" id="ann-main" value="${formState.annMain}" oninput="formState.annMain = this.value" placeholder="Main Title (e.g., COSTUME CONTEST NOW)" class="w-full bg-[#0b0e14] border border-slate-700 p-3 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500">
+                            <input type="text" id="ann-sub" value="${formState.annSub}" oninput="formState.annSub = this.value" placeholder="Sub-text (optional)" class="w-full bg-[#0b0e14] border border-slate-700 p-3 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500">
+                            
+                            <div class="flex gap-2">
+                                <button onclick="setQuickAnn('COSTUME CONTEST IN 5 MINS', 'Get ready on stage')" class="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 py-1.5 px-3 rounded-lg border border-slate-700">Preset: Contest</button>
+                                <button onclick="setQuickAnn('HAPPY HALLOWEEN!', 'Enjoy the party')" class="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 py-1.5 px-3 rounded-lg border border-slate-700">Preset: Halloween</button>
+                            </div>
+
+                            <button onclick="updateAnnouncement()" class="w-full bg-indigo-600 hover:bg-indigo-500 py-3 rounded-xl font-bold text-sm text-white transition">
+                                Push to Big Screen
+                            </button>
+                        </div>
+
+                        <!-- Emergency Controls -->
+                        <div class="bg-[#121721] p-6 rounded-2xl border ${state.config.emergencyActive ? 'border-rose-500 bg-rose-950/20' : 'border-slate-800'} space-y-3">
+                            <h3 class="text-sm font-bold ${state.config.emergencyActive ? 'text-rose-400 animate-pulse' : 'text-slate-300'} uppercase tracking-wider">Emergency Alarm Master Control</h3>
+                            <button onclick="toggleEmergency()" class="w-full py-4 rounded-xl font-black text-sm tracking-widest text-white transition ${state.config.emergencyActive ? 'bg-emerald-600 hover:bg-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.4)]' : 'bg-rose-600 hover:bg-rose-500 shadow-lg'}">
+                                ${state.config.emergencyActive ? 'RESET / DEACTIVATE EMERGENCY ALARM' : 'TRIGGER EMERGENCY ALARM'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // 6. ADMIN VIEW
+    else if (state.view === 'admin') {
+        container.className = "max-w-3xl mx-auto p-6 md:p-10 w-full flex-1 flex flex-col justify-center";
+        container.innerHTML = `
+            <div class="bg-[#121721] p-8 rounded-2xl border border-slate-800 space-y-6">
+                <div class="border-b border-slate-800 pb-4">
+                    <h2 class="text-xl font-bold text-white">System Administration</h2>
+                    <p class="text-xs text-slate-400">Database linkage & system configuration.</p>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">JSONbin Bin ID</label>
+                        <input type="text" value="${BIN_ID}" disabled class="w-full bg-[#0b0e14] border border-slate-800 p-3 rounded-xl text-slate-500 text-sm font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Emergency Message Text</label>
+                        <textarea id="admin-emergency-msg" oninput="formState.adminEmergencyMsg = this.value" class="w-full bg-[#0b0e14] border border-slate-700 p-3 rounded-xl text-white text-sm h-24 resize-none focus:outline-none focus:border-indigo-500">${formState.adminEmergencyMsg}</textarea>
+                    </div>
+                    <button onclick="saveAdminSettings()" class="w-full bg-indigo-600 hover:bg-indigo-500 py-3 rounded-xl font-bold text-sm text-white transition">
+                        Save System Defaults
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+}
+
+// POS Action
+function submitOrder() {
+    const table = formState.posTable;
+    const item = formState.posItem;
+    if (!table || !item) return;
+    state.orders.push({ table, item, status: 'ordered' });
+    formState.posItem = '';
+    saveData();
+    alert("Order submitted!");
+}
+
+// KDS Actions
+function setOrderStatus(index, status) {
+    state.orders[index].status = status;
+    saveData();
+}
+
+function removeOrder(index) {
+    state.orders.splice(index, 1);
+    saveData();
+}
+
+// DJ Actions
+function updateAnnouncement() {
+    state.config.announcement = formState.annMain;
+    state.config.subAnnouncement = formState.annSub;
+    saveData();
+    alert("Announcement pushed to Big Screen!");
+}
+
+function setQuickAnn(main, sub) {
+    formState.annMain = main;
+    formState.annSub = sub;
+    updateAnnouncement();
+}
+
+function setLighting(mode) {
+    state.config.lighting = mode;
+    saveData();
+}
+
+function toggleEmergency() {
+    state.config.emergencyActive = !state.config.emergencyActive;
+    saveData();
+}
+
+function saveAdminSettings() {
+    state.config.emergencyMessage = formState.adminEmergencyMsg;
+    saveData();
+    alert("Admin defaults saved.");
+}
+
+// Initial Sync Cycle
+syncData();
+setInterval(syncData, 3000);
