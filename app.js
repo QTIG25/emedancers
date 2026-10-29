@@ -13,7 +13,7 @@ let state = {
         subAnnouncement: 'Enjoy the music, drinks, and performances',
         kdsTone: 'beep',
         kdsVolume: 0.5,
-        lighting: 'ambient_orange' // 'ambient_orange', 'neon_purple', 'strobe_white', 'party_rgb', 'blackout'
+        lighting: 'ambient_orange'
     }
 };
 
@@ -28,7 +28,7 @@ let formState = {
 let emergencyAudioCtx = null;
 let emergencyOscillator = null;
 
-// Audio Synth for Evacuation Tone
+// Audio Synth for Evacuation Tone (Guaranteed override loop)
 function playEmergencyTone() {
     try {
         if (!emergencyAudioCtx) {
@@ -48,9 +48,9 @@ function playEmergencyTone() {
                 emergencyOscillator.frequency.setValueAtTime(isHigh ? 800 : 970, emergencyAudioCtx.currentTime);
                 isHigh = !isHigh;
             }
-        }, 500);
+        }, 300);
 
-        gainNode.gain.setValueAtTime(0.8, emergencyAudioCtx.currentTime);
+        gainNode.gain.setValueAtTime(1.0, emergencyAudioCtx.currentTime);
         emergencyOscillator.connect(gainNode);
         gainNode.connect(emergencyAudioCtx.destination);
         emergencyOscillator.start();
@@ -69,7 +69,7 @@ function stopEmergencyTone() {
     }
 }
 
-// Data Sync Engine with Active Focus Guard
+// Data Sync Engine with Active Focus Guard (Preserves Multi-DJ session state)
 async function syncData() {
     try {
         const res = await fetch(API_URL, {
@@ -124,23 +124,23 @@ function render() {
     if (!formState.annSub) formState.annSub = state.config.subAnnouncement || '';
     if (!formState.adminEmergencyMsg) formState.adminEmergencyMsg = state.config.emergencyMessage || '';
 
+    // MASTER EMERGENCY OVERRIDE (Applies instantly across all screens/devices)
+    if (state.config.emergencyActive) {
+        if (kioskEmergency) kioskEmergency.classList.remove('hidden');
+        if (kioskEmergencyMsg) kioskEmergencyMsg.innerText = state.config.emergencyMessage;
+        playEmergencyTone();
+    } else {
+        if (kioskEmergency) kioskEmergency.classList.add('hidden');
+        stopEmergencyTone();
+    }
+
+    // Handle Kiosk Mode (Hide Headers/Footers on Big Screen)
     if (state.view === 'ann') {
         header.classList.add('hidden');
         footer.classList.add('hidden');
-        
-        if (state.config.emergencyActive) {
-            kioskEmergency.classList.remove('hidden');
-            if (kioskEmergencyMsg) kioskEmergencyMsg.innerText = state.config.emergencyMessage;
-            playEmergencyTone();
-        } else {
-            kioskEmergency.classList.add('hidden');
-            stopEmergencyTone();
-        }
     } else {
         header.classList.remove('hidden');
         footer.classList.remove('hidden');
-        kioskEmergency.classList.add('hidden');
-        stopEmergencyTone();
     }
 
     // 1. HOME VIEW
@@ -188,60 +188,56 @@ function render() {
         `;
     }
 
-    // 2. BIG SCREEN VIEW (HALLOWEEN DECOR + DYNAMIC LIGHTING MODES + CDS)
+    // 2. BIG SCREEN VIEW (HALLOWEEN DECOR + SUPERCHARGED UPBEAT PARTY LIGHTS + CDS)
     else if (state.view === 'ann') {
         const preparingOrders = state.orders.filter(o => o.status === 'in_prog');
         const readyOrders = state.orders.filter(o => o.status === 'ready');
 
-        // Determine dynamic background/lighting styling based on DJ control
         let lightingBg = "bg-gradient-to-b from-[#0f071c] via-[#07040d] to-[#040207]";
         let lightingOverlay = "";
         let borderGlow = "border-orange-500/20";
 
         if (state.config.lighting === 'neon_purple') {
-            lightingBg = "bg-gradient-to-b from-[#1e072e] via-[#10031a] to-[#05010a]";
-            lightingOverlay = "shadow-[inset_0_0_120px_rgba(168,85,247,0.3)]";
-            borderGlow = "border-purple-500/40";
+            lightingBg = "bg-gradient-to-b from-[#2e074d] via-[#10031a] to-[#05010a]";
+            lightingOverlay = "shadow-[inset_0_0_150px_rgba(168,85,247,0.5)]";
+            borderGlow = "border-purple-500/60";
         } else if (state.config.lighting === 'strobe_white') {
-            lightingBg = "bg-slate-900";
-            lightingOverlay = "animate-pulse bg-white/10";
-            borderGlow = "border-white/50";
+            lightingBg = "bg-black";
+            lightingOverlay = "animate-[bounce_0.2s_infinite] bg-white/20";
+            borderGlow = "border-white";
         } else if (state.config.lighting === 'party_rgb') {
-            lightingBg = "bg-gradient-to-r from-purple-950 via-indigo-950 to-rose-950 animate-pulse";
-            lightingOverlay = "shadow-[inset_0_0_150px_rgba(236,72,153,0.3)]";
-            borderGlow = "border-pink-500/50";
+            // Super-upbeat rapid color shifting party mode
+            lightingBg = "bg-gradient-to-r from-purple-700 via-pink-600 to-indigo-700 animate-[pulse_0.4s_cubic-bezier(0.4,0,0.6,1)_infinite]";
+            lightingOverlay = "shadow-[inset_0_0_200px_rgba(255,255,255,0.4)]";
+            borderGlow = "border-pink-300";
         } else if (state.config.lighting === 'blackout') {
             lightingBg = "bg-black";
-            borderGlow = "border-zinc-800";
+            borderGlow = "border-zinc-900";
         }
 
-        container.className = `w-full min-h-screen ${lightingBg} p-8 md:p-14 flex flex-col justify-between relative overflow-hidden transition-colors duration-500 ${lightingOverlay}`;
+        container.className = `w-full min-h-screen ${lightingBg} p-8 md:p-14 flex flex-col justify-between relative overflow-hidden transition-all duration-300 ${lightingOverlay}`;
         container.innerHTML = `
-            <!-- Ambient Decorative Elements -->
-            <div class="absolute -top-32 -left-32 w-96 h-96 bg-orange-600/15 rounded-full blur-3xl pointer-events-none"></div>
-            <div class="absolute -bottom-32 -right-32 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -top-32 -left-32 w-96 h-96 bg-orange-600/20 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -bottom-32 -right-32 w-96 h-96 bg-purple-600/30 rounded-full blur-3xl pointer-events-none"></div>
 
-            <!-- Header Branding -->
             <div class="flex items-center justify-between border-b ${borderGlow} pb-6 relative z-20">
                 <div class="flex items-center gap-3">
                     <span class="text-3xl animate-bounce">🎃</span>
                     <span class="font-brand font-black text-3xl md:text-4xl tracking-widest text-orange-400 drop-shadow-[0_0_20px_rgba(249,115,22,0.5)]">EME DANCERS</span>
                 </div>
-                <div class="text-purple-400 font-mono text-xs font-bold tracking-widest uppercase flex items-center gap-2">
+                <div class="text-purple-300 font-mono text-xs font-bold tracking-widest uppercase flex items-center gap-2">
                     <span>🦇 HALLOWEEN STAGE 🦇</span>
                     <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
                 </div>
             </div>
 
-            <!-- Main Center Announcement Text -->
             <div class="my-auto py-12 text-center space-y-6 relative z-20">
-                <h1 class="font-brand text-5xl md:text-8xl font-black text-white tracking-tight leading-tight uppercase drop-shadow-[0_0_40px_rgba(168,85,247,0.4)]">
+                <h1 class="font-brand text-5xl md:text-8xl font-black text-white tracking-tight leading-tight uppercase drop-shadow-[0_0_40px_rgba(168,85,247,0.6)]">
                     ${state.config.announcement}
                 </h1>
                 ${state.config.subAnnouncement ? `<p class="text-orange-300 text-2xl md:text-3xl font-semibold tracking-wide drop-shadow">${state.config.subAnnouncement}</p>` : ''}
             </div>
 
-            <!-- CDS (Customer Order Collection Display) -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-purple-950/80 pt-8 relative z-20">
                 <div class="bg-[#120b1e]/90 backdrop-blur-md p-6 rounded-2xl border border-purple-900/60 shadow-xl">
                     <h3 class="text-xs font-bold uppercase tracking-widest text-amber-400 mb-4 flex items-center gap-2">
@@ -364,7 +360,7 @@ function render() {
         `;
     }
 
-    // 5. DJ & TECH CONTROL DECK (WITH LIGHTING CONTROLS)
+    // 5. DJ & TECH CONTROL DECK
     else if (state.view === 'dj') {
         container.className = "max-w-7xl mx-auto p-6 md:p-10";
         container.innerHTML = `
@@ -393,10 +389,10 @@ function render() {
                     </div>
 
                     <div class="space-y-6">
-                        <!-- Stage Lighting Control Suite -->
+                        <!-- Upbeat Stage Lighting Control Suite -->
                         <div class="bg-[#121721] p-6 rounded-2xl border border-slate-800 space-y-4">
                             <h3 class="text-sm font-bold text-white uppercase tracking-wider">Big Screen Stage Lighting</h3>
-                            <p class="text-xs text-slate-400">Control live ambient washes, strobe flashing, and party lighting modes on the TV display.</p>
+                            <p class="text-xs text-slate-400">Control live ambient washes, high-tempo strobe flashing, and upbeat party pulsing modes.</p>
                             
                             <div class="grid grid-cols-2 md:grid-cols-3 gap-2.5">
                                 <button onclick="setLighting('ambient_orange')" class="py-2.5 px-3 rounded-xl text-xs font-bold border transition ${state.config.lighting === 'ambient_orange' ? 'bg-orange-600 border-orange-500 text-white shadow-lg' : 'bg-[#0b0e14] border-slate-800 text-orange-400'}">
@@ -405,11 +401,11 @@ function render() {
                                 <button onclick="setLighting('neon_purple')" class="py-2.5 px-3 rounded-xl text-xs font-bold border transition ${state.config.lighting === 'neon_purple' ? 'bg-purple-600 border-purple-500 text-white shadow-lg' : 'bg-[#0b0e14] border-slate-800 text-purple-400'}">
                                     🔮 Neon Purple
                                 </button>
-                                <button onclick="setLighting('party_rgb')" class="py-2.5 px-3 rounded-xl text-xs font-bold border transition ${state.config.lighting === 'party_rgb' ? 'bg-pink-600 border-pink-500 text-white shadow-lg' : 'bg-[#0b0e14] border-slate-800 text-pink-400'}">
-                                    🌈 Party RGB Pulse
+                                <button onclick="setLighting('party_rgb')" class="py-2.5 px-3 rounded-xl text-xs font-bold border transition ${state.config.lighting === 'party_rgb' ? 'bg-pink-600 border-pink-500 text-white shadow-lg animate-pulse' : 'bg-[#0b0e14] border-slate-800 text-pink-400'}">
+                                    ⚡ Upbeat Party RGB
                                 </button>
                                 <button onclick="setLighting('strobe_white')" class="py-2.5 px-3 rounded-xl text-xs font-bold border transition ${state.config.lighting === 'strobe_white' ? 'bg-slate-200 border-white text-black shadow-lg' : 'bg-[#0b0e14] border-slate-800 text-slate-300'}">
-                                    ⚡ Strobe White
+                                    💥 Rapid Strobe
                                 </button>
                                 <button onclick="setLighting('blackout')" class="py-2.5 px-3 rounded-xl text-xs font-bold border transition ${state.config.lighting === 'blackout' ? 'bg-zinc-800 border-zinc-600 text-white shadow-lg' : 'bg-[#0b0e14] border-slate-800 text-zinc-500'}">
                                     🌑 Blackout
