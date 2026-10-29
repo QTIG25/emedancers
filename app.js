@@ -13,10 +13,11 @@ let state = {
         subAnnouncement: 'Enjoy the music, drinks, and performances',
         kdsTone: 'beep',
         kdsVolume: 0.5,
-        effect: 'none' // 'none', 'confetti', 'fireworks'
+        lighting: 'ambient_orange'
     }
 };
 
+// Form buffer to prevent any text input from being wiped during live sync polling
 let formState = {
     posTable: 'Table 1',
     posItem: '',
@@ -48,9 +49,9 @@ function playEmergencyTone() {
                 emergencyOscillator.frequency.setValueAtTime(isHigh ? 800 : 970, emergencyAudioCtx.currentTime);
                 isHigh = !isHigh;
             }
-        }, 500);
+        }, 300);
 
-        gainNode.gain.setValueAtTime(0.8, emergencyAudioCtx.currentTime);
+        gainNode.gain.setValueAtTime(1.0, emergencyAudioCtx.currentTime);
         emergencyOscillator.connect(gainNode);
         gainNode.connect(emergencyAudioCtx.destination);
         emergencyOscillator.start();
@@ -124,28 +125,28 @@ function render() {
     if (!formState.annSub) formState.annSub = state.config.subAnnouncement || '';
     if (!formState.adminEmergencyMsg) formState.adminEmergencyMsg = state.config.emergencyMessage || '';
 
+    // Master Emergency Override Check
+    if (state.config.emergencyActive) {
+        if (kioskEmergency) kioskEmergency.classList.remove('hidden');
+        if (kioskEmergencyMsg) kioskEmergencyMsg.innerText = state.config.emergencyMessage;
+        playEmergencyTone();
+    } else {
+        if (kioskEmergency) kioskEmergency.classList.add('hidden');
+        stopEmergencyTone();
+    }
+
+    // Handle Kiosk Mode (Hide Headers/Footers on Big Screen)
     if (state.view === 'ann') {
         header.classList.add('hidden');
         footer.classList.add('hidden');
-        
-        if (state.config.emergencyActive) {
-            kioskEmergency.classList.remove('hidden');
-            if (kioskEmergencyMsg) kioskEmergencyMsg.innerText = state.config.emergencyMessage;
-            playEmergencyTone();
-        } else {
-            kioskEmergency.classList.add('hidden');
-            stopEmergencyTone();
-        }
     } else {
         header.classList.remove('hidden');
         footer.classList.remove('hidden');
-        kioskEmergency.classList.add('hidden');
-        stopEmergencyTone();
     }
 
     // 1. HOME VIEW
     if (state.view === 'home') {
-        container.className = "max-w-7xl mx-auto p-6 md:p-10";
+        container.className = "max-w-7xl mx-auto p-6 md:p-10 w-full flex-1 flex flex-col justify-center";
         container.innerHTML = `
             <div class="space-y-8">
                 <div class="border-b border-slate-800 pb-6">
@@ -169,13 +170,13 @@ function render() {
                     <div onclick="switchView('dj')" class="bg-[#121721] p-6 rounded-xl border border-slate-800 hover:border-slate-600 cursor-pointer transition shadow-lg">
                         <div class="text-xs font-bold tracking-widest text-indigo-400 uppercase mb-2">Stage & Audio</div>
                         <h3 class="text-xl font-bold text-white">DJ & Tech Deck</h3>
-                        <p class="text-xs text-slate-400 mt-2">Spotify player, announcements, FX & emergency controls.</p>
+                        <p class="text-xs text-slate-400 mt-2">Spotify player, lighting control & emergency overrides.</p>
                     </div>
 
                     <div onclick="switchView('ann')" class="bg-[#121721] p-6 rounded-xl border border-slate-800 hover:border-slate-600 cursor-pointer transition shadow-lg">
                         <div class="text-xs font-bold tracking-widest text-purple-400 uppercase mb-2">Public Kiosk</div>
                         <h3 class="text-xl font-bold text-white">Big Screen (ANN / CDS)</h3>
-                        <p class="text-xs text-slate-400 mt-2">Full-screen Halloween display with live CDS collection board.</p>
+                        <p class="text-xs text-slate-400 mt-2">Decorated Halloween stage display with live RGB lighting & CDS.</p>
                     </div>
 
                     <div onclick="switchView('admin')" class="bg-[#121721] p-6 rounded-xl border border-slate-800 hover:border-slate-600 cursor-pointer transition shadow-lg">
@@ -188,58 +189,55 @@ function render() {
         `;
     }
 
-    // 2. BIG SCREEN VIEW (CLEAN HALLOWEEN AESTHETIC + FX + CDS)
+    // 2. BIG SCREEN VIEW (HALLOWEEN DECOR + UPBEAT PARTY LIGHTING + CDS)
     else if (state.view === 'ann') {
         const preparingOrders = state.orders.filter(o => o.status === 'in_prog');
         const readyOrders = state.orders.filter(o => o.status === 'ready');
 
-        let effectHTML = '';
-        if (state.config.effect === 'confetti') {
-            effectHTML = `
-                <div class="absolute inset-0 pointer-events-none overflow-hidden z-10">
-                    <div class="absolute inset-0 bg-[radial-gradient(circle,rgba(249,115,22,0.12)_0%,transparent_70%)]"></div>
-                    <div class="confetti-streamer">🎃 🦇 👻 🍬 🕸️ 🔮 🎃 🦇 👻 🍬 🕸️ 🔮</div>
-                </div>
-            `;
-        } else if (state.config.effect === 'fireworks') {
-            effectHTML = `
-                <div class="absolute inset-0 pointer-events-none overflow-hidden z-10 bg-purple-950/20">
-                    <div class="absolute top-12 left-1/4 text-7xl animate-bounce">🎇</div>
-                    <div class="absolute top-24 right-1/4 text-7xl animate-bounce" style="animation-delay: 0.2s;">🎆</div>
-                    <div class="absolute bottom-1/3 left-1/3 text-7xl animate-bounce" style="animation-delay: 0.4s;">💥</div>
-                    <div class="absolute top-1/2 right-1/3 text-7xl animate-bounce" style="animation-delay: 0.6s;">✨</div>
-                </div>
-            `;
+        let lightingBg = "bg-gradient-to-b from-[#0f071c] via-[#07040d] to-[#040207]";
+        let lightingOverlay = "";
+        let borderGlow = "border-orange-500/20";
+
+        if (state.config.lighting === 'neon_purple') {
+            lightingBg = "bg-gradient-to-b from-[#2e074d] via-[#10031a] to-[#05010a]";
+            lightingOverlay = "shadow-[inset_0_0_150px_rgba(168,85,247,0.5)]";
+            borderGlow = "border-purple-500/60";
+        } else if (state.config.lighting === 'strobe_white') {
+            lightingBg = "bg-black";
+            lightingOverlay = "animate-[bounce_0.2s_infinite] bg-white/20";
+            borderGlow = "border-white";
+        } else if (state.config.lighting === 'party_rgb') {
+            lightingBg = "bg-gradient-to-r from-purple-700 via-pink-600 to-indigo-700 animate-[pulse_0.4s_cubic-bezier(0.4,0,0.6,1)_infinite]";
+            lightingOverlay = "shadow-[inset_0_0_200px_rgba(255,255,255,0.4)]";
+            borderGlow = "border-pink-300";
+        } else if (state.config.lighting === 'blackout') {
+            lightingBg = "bg-black";
+            borderGlow = "border-zinc-900";
         }
 
-        container.className = "w-full min-h-screen bg-gradient-to-b from-[#0f071c] via-[#07040d] to-[#040207] p-8 md:p-14 flex flex-col justify-between relative overflow-hidden";
+        container.className = `w-full min-h-screen ${lightingBg} p-8 md:p-14 flex flex-col justify-between relative overflow-hidden transition-all duration-300 ${lightingOverlay}`;
         container.innerHTML = `
-            ${effectHTML}
+            <div class="absolute -top-32 -left-32 w-96 h-96 bg-orange-600/20 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -bottom-32 -right-32 w-96 h-96 bg-purple-600/30 rounded-full blur-3xl pointer-events-none"></div>
 
-            <!-- Spooky Ambient Glows -->
-            <div class="absolute -top-32 -left-32 w-96 h-96 bg-orange-600/15 rounded-full blur-3xl pointer-events-none"></div>
-            <div class="absolute -bottom-32 -right-32 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl pointer-events-none"></div>
-
-            <!-- Header Branding (Cleaned up as requested) -->
-            <div class="flex items-center justify-between border-b border-orange-500/20 pb-6 relative z-20">
+            <div class="flex items-center justify-between border-b ${borderGlow} pb-6 relative z-20">
                 <div class="flex items-center gap-3">
-                    <span class="text-3xl animate-pulse">🎃</span>
+                    <span class="text-3xl animate-bounce">🎃</span>
                     <span class="font-brand font-black text-3xl md:text-4xl tracking-widest text-orange-400 drop-shadow-[0_0_20px_rgba(249,115,22,0.5)]">EME DANCERS</span>
                 </div>
-                <div class="text-purple-400 font-mono text-xs font-bold tracking-widest uppercase">
-                    🕸️ HALLOWEEN PRODUCTION 🕸️
+                <div class="text-purple-300 font-mono text-xs font-bold tracking-widest uppercase flex items-center gap-2">
+                    <span>🦇 HALLOWEEN STAGE 🦇</span>
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
                 </div>
             </div>
 
-            <!-- Main Center Announcement Text -->
             <div class="my-auto py-12 text-center space-y-6 relative z-20">
-                <h1 class="font-brand text-5xl md:text-8xl font-black text-white tracking-tight leading-tight uppercase drop-shadow-[0_0_40px_rgba(168,85,247,0.4)]">
+                <h1 class="font-brand text-5xl md:text-8xl font-black text-white tracking-tight leading-tight uppercase drop-shadow-[0_0_40px_rgba(168,85,247,0.6)]">
                     ${state.config.announcement}
                 </h1>
                 ${state.config.subAnnouncement ? `<p class="text-orange-300 text-2xl md:text-3xl font-semibold tracking-wide drop-shadow">${state.config.subAnnouncement}</p>` : ''}
             </div>
 
-            <!-- CDS (Customer Order Collection Display) -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-purple-950/80 pt-8 relative z-20">
                 <div class="bg-[#120b1e]/90 backdrop-blur-md p-6 rounded-2xl border border-purple-900/60 shadow-xl">
                     <h3 class="text-xs font-bold uppercase tracking-widest text-amber-400 mb-4 flex items-center gap-2">
@@ -274,7 +272,7 @@ function render() {
 
     // 3. POS VIEW
     else if (state.view === 'pos') {
-        container.className = "max-w-3xl mx-auto p-6 md:p-10";
+        container.className = "max-w-3xl mx-auto p-6 md:p-10 w-full flex-1 flex flex-col justify-center";
         container.innerHTML = `
             <div class="bg-[#121721] p-8 rounded-2xl border border-slate-800 shadow-xl space-y-6">
                 <div class="border-b border-slate-800 pb-4">
@@ -303,7 +301,7 @@ function render() {
 
     // 4. KITCHEN DISPLAY (KDS)
     else if (state.view === 'kds') {
-        container.className = "max-w-7xl mx-auto p-6 md:p-10";
+        container.className = "max-w-7xl mx-auto p-6 md:p-10 w-full flex-1";
         container.innerHTML = `
             <div class="space-y-6">
                 <div class="flex items-center justify-between border-b border-slate-800 pb-4">
@@ -346,177 +344,4 @@ function render() {
                                         <button onclick="setOrderStatus(${idx}, 'in_prog')" class="bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 text-xs font-bold py-2 rounded-lg transition border border-blue-500/30">
                                             Start Prep
                                         </button>
-                                        <button onclick="setOrderStatus(${idx}, 'ready')" class="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 text-xs font-bold py-2 rounded-lg transition border border-emerald-500/30">
-                                            Mark Ready
-                                        </button>
-                                    </div>
-                                    <button onclick="removeOrder(${idx})" class="w-full bg-slate-800 hover:bg-rose-900/30 text-slate-400 hover:text-rose-300 text-xs font-bold py-2 rounded-lg transition border border-slate-700">
-                                        Complete & Delete Order
-                                    </button>
-                                </div>
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-            </div>
-        `;
-    }
-
-    // 5. DJ & TECH CONTROL DECK
-    else if (state.view === 'dj') {
-        container.className = "max-w-7xl mx-auto p-6 md:p-10";
-        container.innerHTML = `
-            <div class="space-y-6">
-                <div class="border-b border-slate-800 pb-4">
-                    <h2 class="text-xl font-bold text-white">DJ & Tech Deck</h2>
-                    <p class="text-xs text-slate-400">Full Spotify integration, stage broadcasts, visual FX, and master emergency override controls.</p>
-                </div>
-
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div class="bg-[#121721] p-6 rounded-2xl border border-slate-800 space-y-4 flex flex-col h-[560px]">
-                        <div class="flex items-center justify-between">
-                            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Spotify Web Player</h3>
-                            <a href="https://open.spotify.com" target="_blank" class="text-xs text-indigo-400 hover:underline">Open in new tab ↗</a>
-                        </div>
-                        <div class="w-full flex-1 rounded-xl overflow-hidden border border-slate-800 bg-black">
-                            <iframe 
-                                src="https://open.spotify.com" 
-                                width="100%" 
-                                height="100%" 
-                                frameBorder="0" 
-                                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
-                                loading="lazy">
-                            </iframe>
-                        </div>
-                    </div>
-
-                    <div class="space-y-6">
-                        <!-- Stage Visual FX Controller -->
-                        <div class="bg-[#121721] p-6 rounded-2xl border border-slate-800 space-y-4">
-                            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Big Screen Visual FX</h3>
-                            <p class="text-xs text-slate-400">Trigger live celebratory and Halloween effects on the public display.</p>
-                            
-                            <div class="grid grid-cols-3 gap-3">
-                                <button onclick="setEffect('none')" class="py-2.5 rounded-xl text-xs font-bold border transition ${state.config.effect === 'none' ? 'bg-slate-700 border-slate-500 text-white' : 'bg-[#0b0e14] border-slate-800 text-slate-400'}">
-                                    Clear FX
-                                </button>
-                                <button onclick="setEffect('confetti')" class="py-2.5 rounded-xl text-xs font-bold border transition ${state.config.effect === 'confetti' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-[#0b0e14] border-slate-800 text-purple-400'}">
-                                    🎃 Spooky Confetti
-                                </button>
-                                <button onclick="setEffect('fireworks')" class="py-2.5 rounded-xl text-xs font-bold border transition ${state.config.effect === 'fireworks' ? 'bg-orange-600 border-orange-500 text-white' : 'bg-[#0b0e14] border-slate-800 text-orange-400'}">
-                                    🎆 Fireworks
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Broadcast Controller -->
-                        <div class="bg-[#121721] p-6 rounded-2xl border border-slate-800 space-y-4">
-                            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Push to Big Screen</h3>
-                            <input type="text" id="ann-main" value="${formState.annMain}" oninput="formState.annMain = this.value" placeholder="Main Title (e.g., COSTUME CONTEST NOW)" class="w-full bg-[#0b0e14] border border-slate-700 p-3 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500">
-                            <input type="text" id="ann-sub" value="${formState.annSub}" oninput="formState.annSub = this.value" placeholder="Sub-text (optional)" class="w-full bg-[#0b0e14] border border-slate-700 p-3 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500">
-                            
-                            <div class="flex gap-2">
-                                <button onclick="setQuickAnn('COSTUME CONTEST IN 5 MINS', 'Get ready on stage')" class="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 py-1.5 px-3 rounded-lg border border-slate-700">Preset: Contest</button>
-                                <button onclick="setQuickAnn('HAPPY HALLOWEEN!', 'Enjoy the party')" class="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 py-1.5 px-3 rounded-lg border border-slate-700">Preset: Halloween</button>
-                            </div>
-
-                            <button onclick="updateAnnouncement()" class="w-full bg-indigo-600 hover:bg-indigo-500 py-3 rounded-xl font-bold text-sm text-white transition">
-                                Push to Big Screen
-                            </button>
-                        </div>
-
-                        <!-- Emergency Controls -->
-                        <div class="bg-[#121721] p-6 rounded-2xl border ${state.config.emergencyActive ? 'border-rose-500 bg-rose-950/20' : 'border-slate-800'} space-y-3">
-                            <h3 class="text-sm font-bold ${state.config.emergencyActive ? 'text-rose-400 animate-pulse' : 'text-slate-300'} uppercase tracking-wider">Emergency Alarm Master Control</h3>
-                            <button onclick="toggleEmergency()" class="w-full py-4 rounded-xl font-black text-sm tracking-widest text-white transition ${state.config.emergencyActive ? 'bg-emerald-600 hover:bg-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.4)]' : 'bg-rose-600 hover:bg-rose-500 shadow-lg'}">
-                                ${state.config.emergencyActive ? 'RESET / DEACTIVATE EMERGENCY ALARM' : 'TRIGGER EMERGENCY ALARM'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    // 6. ADMIN VIEW
-    else if (state.view === 'admin') {
-        container.className = "max-w-3xl mx-auto p-6 md:p-10";
-        container.innerHTML = `
-            <div class="bg-[#121721] p-8 rounded-2xl border border-slate-800 space-y-6">
-                <div class="border-b border-slate-800 pb-4">
-                    <h2 class="text-xl font-bold text-white">System Administration</h2>
-                    <p class="text-xs text-slate-400">Database linkage & system configuration.</p>
-                </div>
-
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">JSONbin Bin ID</label>
-                        <input type="text" value="${BIN_ID}" disabled class="w-full bg-[#0b0e14] border border-slate-800 p-3 rounded-xl text-slate-500 text-sm font-mono">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Emergency Message Text</label>
-                        <textarea id="admin-emergency-msg" oninput="formState.adminEmergencyMsg = this.value" class="w-full bg-[#0b0e14] border border-slate-700 p-3 rounded-xl text-white text-sm h-24 resize-none focus:outline-none focus:border-indigo-500">${formState.adminEmergencyMsg}</textarea>
-                    </div>
-                    <button onclick="saveAdminSettings()" class="w-full bg-indigo-600 hover:bg-indigo-500 py-3 rounded-xl font-bold text-sm text-white transition">
-                        Save System Defaults
-                    </button>
-                </div>
-            </div>
-        `;
-    }
-}
-
-// POS Action
-function submitOrder() {
-    const table = formState.posTable;
-    const item = formState.posItem;
-    if (!table || !item) return;
-    state.orders.push({ table, item, status: 'ordered' });
-    formState.posItem = '';
-    saveData();
-    alert("Order submitted!");
-}
-
-// KDS Actions
-function setOrderStatus(index, status) {
-    state.orders[index].status = status;
-    saveData();
-}
-
-function removeOrder(index) {
-    state.orders.splice(index, 1);
-    saveData();
-}
-
-// DJ Actions
-function updateAnnouncement() {
-    state.config.announcement = formState.annMain;
-    state.config.subAnnouncement = formState.annSub;
-    saveData();
-}
-
-function setQuickAnn(main, sub) {
-    formState.annMain = main;
-    formState.annSub = sub;
-    updateAnnouncement();
-}
-
-function setEffect(effectName) {
-    state.config.effect = effectName;
-    saveData();
-}
-
-function toggleEmergency() {
-    state.config.emergencyActive = !state.config.emergencyActive;
-    saveData();
-}
-
-function saveAdminSettings() {
-    state.config.emergencyMessage = formState.adminEmergencyMsg;
-    saveData();
-    alert("Admin defaults saved.");
-}
-
-// Initial Sync Cycle
-syncData();
-setInterval(syncData, 3000);
+                                        <button onclick="setOrderStatus(${idx}, 'ready')" class="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 text-xs font-bold py-2 rounded-lg transition border border
